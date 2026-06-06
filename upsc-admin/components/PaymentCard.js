@@ -33,15 +33,6 @@ export default function PaymentCard({ payment = {}, onVerify, onReject, actionLo
               {payment.createdAt ? new Date(payment.createdAt).toLocaleString() : "—"}
             </span>
           </div>
-          
-          {payment.geminiAnalysis ? (
-            <div className="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-700/50 text-sm">
-              <span className="text-slate-500 text-xs uppercase tracking-wider block mb-1">AI Analysis</span>
-              <p className="text-slate-300">{payment.geminiAnalysis}</p>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-slate-500 italic">No AI analysis available.</p>
-          )}
         </div>
 
         {/* Actions */}
