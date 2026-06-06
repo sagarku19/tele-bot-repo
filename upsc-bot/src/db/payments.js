@@ -4,7 +4,7 @@ const COLLECTION = 'payments';
 
 /**
  * Save a new payment record to Firestore.
- * @param {object} data - { telegramId, courseId, screenshotUrl, geminiAnalysis? }
+ * @param {object} data - { telegramId, courseId, screenshotUrl }
  * @returns {Promise<string|null>} The created document ID, or null on failure.
  */
 export async function savePayment(data) {
@@ -14,7 +14,6 @@ export async function savePayment(data) {
       courseId: data.courseId,
       screenshotUrl: data.screenshotUrl || '',
       status: 'pending',
-      geminiAnalysis: data.geminiAnalysis || null,
       verifiedAt: null,
       createdAt: new Date().toISOString(),
     };
@@ -56,17 +55,15 @@ export async function getPayment(telegramId, courseId) {
 }
 
 /**
- * Update the status (and optional analysis) of an existing payment.
+ * Update the status of an existing payment.
  * @param {string} paymentId - Firestore document ID
  * @param {string} status - "pending" | "verified" | "rejected"
- * @param {string|null} [analysis] - Optional Gemini analysis text
  * @returns {Promise<boolean>} True if successful.
  */
-export async function updatePaymentStatus(paymentId, status, analysis = null) {
+export async function updatePaymentStatus(paymentId, status) {
   try {
     const updateData = {
       status,
-      ...(analysis !== null && { geminiAnalysis: analysis }),
       ...(status === 'verified' && { verifiedAt: new Date().toISOString() }),
     };
 
