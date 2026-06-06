@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Telegraf } from 'telegraf';
 import express from 'express';
 import { getDb } from '../config/firebase.js';
-import { initProviders } from './ai/providers/index.js';
+import { init as initClaude } from './ai/claude.js';
 import { seedCoursesFromConfig } from './db/courses.js';
 import { registerAdminHandler } from './handlers/admin.js';
 import { registerStartHandler } from './handlers/start.js';
@@ -18,7 +18,7 @@ async function main() {
     console.log('[boot] Starting UPSC Bot...');
 
     if (!process.env.BOT_TOKEN) throw new Error('BOT_TOKEN is not set in .env');
-    if (!process.env.GEMINI_API_KEY) console.warn('[boot] ⚠️  GEMINI_API_KEY not set — AI features will fail');
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set in .env');
     if (!process.env.FIREBASE_PROJECT_ID) console.warn('[boot] ⚠️  FIREBASE_PROJECT_ID not set');
     if (!process.env.ADMIN_TELEGRAM_ID) console.warn('[boot] ⚠️  ADMIN_TELEGRAM_ID not set — admin commands disabled');
 
@@ -27,10 +27,10 @@ async function main() {
     getDb(); // triggers lazy init
     console.log('[boot] ✅ Firebase ready');
 
-    // ── 3. Initialize AI providers ──────────────────────────────────
-    console.log('[boot] Initializing AI providers...');
-    initProviders();
-    console.log('[boot] ✅ AI providers ready');
+    // ── 3. Initialize Claude ────────────────────────────────────────
+    console.log('[boot] Initializing Claude...');
+    initClaude();
+    console.log('[boot] ✅ Claude ready');
 
     // ── 4. Seed courses from config (idempotent) ────────────────────
     console.log('[boot] Seeding courses...');
