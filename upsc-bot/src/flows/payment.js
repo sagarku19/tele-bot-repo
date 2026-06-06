@@ -11,18 +11,13 @@ const WAIT_FOR_VERIFICATION_REPLY =
   'Screenshot mil gaya, thanks! 🙏 Hamari team isko verify kar rahi hai — thoda time lagega (kuch ghante max). Verify hote hi main tujhe ping karungi aur access bhi mil jayega. Tab tak kuch aur poochna ho toh bata!';
 
 /**
- * Payment screenshot processing flow — manual verification path.
+ * Payment screenshot processing flow — manual verification only.
  *
- * 1. Download the photo URL from Telegram (we don't fetch the bytes — the
- *    URL embedding the bot token is enough for admin review).
- * 2. Save a `pending` payment record with the screenshot URL and no AI
- *    analysis (geminiAnalysis: null).
- * 3. Reply to the user with the wait-for-verification Hinglish message.
- * 4. Notify the admin so they can review and verify in the dashboard.
- *
- * AI vision verification was removed in Round 1 of the provider work — see
- * `src/ai/providers/gemini.js#verifyPaymentScreenshot` for the dormant
- * capability if a future "auto-verify" toggle wants to wire it back in.
+ * 1. Resolve the file ID from the Telegram message.
+ * 2. Build the screenshot URL (admin reviews from there).
+ * 3. Save a `pending` payment record.
+ * 4. Reply to the user with the wait-for-verification Hinglish message.
+ * 5. Notify the admin so they can verify in the dashboard.
  *
  * @param {import('telegraf').Context} ctx
  * @param {object} user - User document from Firestore
@@ -58,12 +53,11 @@ export async function processPaymentScreenshot(ctx, user, courseId) {
     const courseName = course?.name || 'Unknown Course';
     const coursePrice = course?.price || 0;
 
-    // ── 4. Save payment record as pending (no AI verification) ─────
+    // ── 4. Save payment record as pending ──────────────────────────
     const paymentId = await savePayment({
       telegramId: userId,
       courseId,
       screenshotUrl: fileUrl,
-      geminiAnalysis: null,
     });
 
     if (!paymentId) {
