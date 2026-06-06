@@ -1,5 +1,5 @@
 /**
- * Stage-based system prompts for Gemini AI.
+ * Stage-based system prompts for the bot.
  *
  * Persona: "Priya" — a warm, relatable UPSC mentor who speaks Hinglish.
  * Every prompt ensures she never sounds robotic, always asks one follow-up,
@@ -99,32 +99,6 @@ STRICT RULES:
 - ALWAYS end with ONE follow-up question ya encouragement
 - Answer evaluation mein structured feedback de with estimated marks`,
 };
-
-// ── Payment verification prompt ───────────────────────────────────────
-
-export const PAYMENT_VERIFICATION_PROMPT = `You are a payment verification system. Analyze this image carefully.
-
-Your job is to determine:
-1. Is this a gift card screenshot or a valid payment screenshot (UPI, bank transfer, wallet, gift card redemption)?
-2. Does the screenshot look genuine and unedited?
-3. What amount is visible in the screenshot?
-4. What date/time is shown (if any)?
-5. Is there a transaction ID or reference number?
-6. Any signs of image manipulation (misaligned text, inconsistent fonts, artifacts)?
-
-RESPOND ONLY IN THIS EXACT JSON FORMAT — no extra text before or after:
-{
-  "isValid": true or false,
-  "amount": number or null,
-  "date": "date string if visible" or null,
-  "transactionId": "ID if visible" or null,
-  "confidence": "high" or "medium" or "low",
-  "isGiftCard": true or false,
-  "notes": "brief explanation of your analysis"
-}
-
-Be strict — if anything looks suspicious, set isValid to false.
-If the image is not a payment/gift card screenshot at all (like a meme, selfie, random photo), set isValid to false and explain in notes.`;
 
 // ── Helper: build conversation prompt with context ────────────────────
 
