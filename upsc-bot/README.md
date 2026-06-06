@@ -1,6 +1,6 @@
 # 🤖 UPSC Bot
 
-A Telegram bot for UPSC exam preparation — powered by Google Gemini AI (or Grok via xAI), Firebase, and Telegraf.
+A Telegram bot for UPSC exam preparation — powered by Anthropic Claude, Firebase, and Telegraf.
 
 ## What it actually does
 
@@ -29,7 +29,7 @@ The bot is a Hinglish UPSC mentor named **Priya** that runs a staged sales funne
 
 - [Node.js](https://nodejs.org/) v18 or later
 - A [Telegram Bot Token](https://core.telegram.org/bots#botfather) from @BotFather
-- A [Google Gemini API Key](https://aistudio.google.com/app/apikey)
+- An [Anthropic API Key](https://console.anthropic.com/settings/keys)
 - A [Firebase project](https://console.firebase.google.com/) with Firestore enabled
 
 ---
@@ -62,16 +62,13 @@ Open `.env` and set the following values:
 | Variable                | Required? | Description                                                                                  |
 | ----------------------- | --------- | -------------------------------------------------------------------------------------------- |
 | `BOT_TOKEN`             | yes       | Telegram bot token from @BotFather                                                           |
-| `AI_PROVIDER`           | optional  | Active text provider: `gemini` (default) or `xai`. Vision always uses Gemini regardless     |
-| `GEMINI_API_KEY`        | yes       | Google Gemini API key (required when `AI_PROVIDER=gemini`, and for vision regardless)        |
+| `ANTHROPIC_API_KEY`     | yes       | Anthropic API key — required at boot |
+| `ANTHROPIC_MODEL`       | optional  | Claude model ID (default `claude-haiku-4-5`) |
 | `FIREBASE_PROJECT_ID`   | yes       | Firebase project ID                                                                          |
 | `FIREBASE_PRIVATE_KEY`  | yes       | Firebase service account private key (with `\n` escapes preserved)                           |
 | `FIREBASE_CLIENT_EMAIL` | yes       | Firebase service account email                                                               |
 | `ADMIN_TELEGRAM_ID`     | optional  | Your numeric Telegram user ID — without it, admin commands are disabled                      |
 | `PORT`                  | optional  | Express server port (default `3000`)                                                         |
-| `GEMINI_MODEL`          | optional  | Gemini model ID (default `gemini-2.5-flash`). Override to e.g. `gemini-3.1-flash-lite` when free-tier RPD is tight (500/day vs 20/day) |
-| `XAI_API_KEY`           | optional  | xAI API key. Required when `AI_PROVIDER=xai`. xAI account needs credits/license — unbilled accounts return 403 |
-| `XAI_MODEL`             | optional  | Grok model ID (default `grok-4-fast-non-reasoning`)                                          |
 | `ENABLE_SIMULATOR`      | optional  | Set to `true` to expose `/sim` browser chat UI on `http://127.0.0.1:<PORT>/sim` (off by default) |
 | `USE_TEST_COURSES`      | optional  | Set to `true` to load `config/courses.test.config.js` instead of the production catalog (still writes to the same Firestore — `test-*` IDs persist) |
 | `FIREBASE_DATABASE_URL` | unused    | Listed in `.env.example` for legacy reasons; we use Firestore, not Realtime Database         |
@@ -119,7 +116,7 @@ npm run dev
    npm run test
    ```
 
-   Test 4 distinguishes a real Gemini reply from the swallowed-error fallback string — if it fails with *"Got the Hinglish fallback…"*, the real API call returned 4xx/5xx (most often quota exhaustion or a retired model). Check the `[Gemini] Chat error:` log above for the exact response.
+   Test 4 distinguishes a real Claude reply from the swallowed-error fallback string — if it fails with *"Got the Hinglish fallback…"*, the real Anthropic call returned 4xx/5xx (most often a bad key or rate limit). Check the `[claude] Chat error:` log above for the exact response.
 
 ---
 
@@ -154,49 +151,15 @@ Boot log shows `[courses] Loaded 🧪 TEST catalog (N courses)` instead of `prod
 - Once seeded, `getAllCourses()` returns both prod and test courses regardless of the env var. To restore a prod-only catalog, delete the test docs.
 - Placeholder `channelId` / `groupId` in the example test config won't resolve to real chats, so `grantAccess` will fail at `createChatInviteLink` if a simulator user reaches `paid`. Replace with real chat IDs if you want to test the full grant path, and only against chats the bot is admin of.
 
-### Switching AI providers
+### AI provider
 
-The bot has a pluggable provider layer (`src/ai/providers/`). Active provider is chosen by `AI_PROVIDER`:
-
-```
-AI_PROVIDER=gemini   # default
-AI_PROVIDER=xai      # use Grok via xAI's OpenAI-compatible API
-```
-
-| Provider | Default model | Chat | Vision |
-|---|---|---|---|
-| `gemini` | `gemini-2.5-flash` | ✅ | ✅ (`verifyPaymentScreenshot`) |
-| `xai`    | `grok-4-fast-non-reasoning` | ✅ | ❌ (not implemented in Round 1) |
-
-Vision (`verifyPaymentScreenshot`) always routes to Gemini regardless of `AI_PROVIDER`, but in the current `flows/payment.js` flow it's not actually called — every screenshot goes to manual admin review (the user gets a Hinglish "wait for verification" reply). The Gemini vision capability is retained for a future auto-verify toggle.
-
-To use xAI: set `AI_PROVIDER=xai` + `XAI_API_KEY=xai-...` in `.env`. The xAI account needs credits or a license before chat requests succeed; an unbilled account returns `HTTP 403 Forbidden` with a billing link.
-
-**Adding a new provider (e.g. Claude later):**
-
-1. Create `src/ai/providers/<name>.js` exporting `name`, `init()`, `chat()`, and optionally `verifyPaymentScreenshot()`. Reuse `CHAT_FALLBACK_REPLY` from `src/ai/constants.js` for error returns so the bot's voice stays consistent.
-2. Register the module in `src/ai/providers/index.js` by adding it to the `REGISTRY` object.
-3. Document the env var (e.g. `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`) in `.env.example`, `CLAUDE.md`, and this file.
-4. No changes to `flows/*` or `index.js` needed — they call the facade.
-
-### Switching Gemini models
-
-The model is configurable via `GEMINI_MODEL` in `.env`:
+The bot uses Anthropic Claude exclusively. Set `ANTHROPIC_API_KEY` in `.env`. To override the default model:
 
 ```
-GEMINI_MODEL=gemini-3.1-flash-lite
+ANTHROPIC_MODEL=claude-sonnet-4-6
 ```
 
-Common candidates and their free-tier daily request caps:
-
-| Model                  | Free RPD | Notes                                 |
-| ---------------------- | -------- | ------------------------------------- |
-| `gemini-2.5-flash`     | 20       | Default; highest quality of the flash tier |
-| `gemini-3.1-flash-lite`| 500      | 25× more headroom — best for dev      |
-| `gemini-3-flash`       | 20       | Newer, non-lite                       |
-| `gemini-3.5-flash`     | 20       | Newer, non-lite                       |
-
-`thinkingBudget: 0` is set unconditionally — Flash-class models honour it (avoids ~1360 wasted thinking tokens per turn), Lite models ignore it silently. Caps change over time; check your [Google AI Studio quota dashboard](https://aistudio.google.com/app/quota) for current values.
+Defaults to `claude-haiku-4-5` — fast and cheap, plenty for the Hinglish conversational persona. Use Sonnet 4.6 if the "paid" UPSC tutor stage needs more nuance.
 
 ---
 
@@ -210,13 +173,10 @@ upsc-bot/
 │   │   ├── message.js     # Catch-all text — delegates to flows/conversation.js (stage router)
 │   │   ├── photo.js       # Photo handler — only acts at stage "payment_pending"; routes to flows/payment.js
 │   │   └── admin.js       # Admin-only commands (gated by ADMIN_TELEGRAM_ID)
-│   ├── ai/                # Pluggable AI provider layer + prompt templates
+│   ├── ai/                # AI provider + prompt templates
 │   │   ├── prompts.js     # STAGE_PROMPTS, vision-verification prompt, buildConversationPrompt()
-│   │   ├── constants.js   # Shared CHAT_FALLBACK_REPLY string (consistent voice across providers)
-│   │   └── providers/     # One module per provider, called via the facade
-│   │       ├── index.js   # Registry + facade: init, chat(), verifyPaymentScreenshot()
-│   │       ├── gemini.js  # Gemini (text + vision); default
-│   │       └── xai.js     # xAI / Grok (text only; vision always routes to Gemini)
+│   │   ├── constants.js   # Shared CHAT_FALLBACK_REPLY string (consistent bot voice)
+│   │   └── claude.js      # Anthropic Claude (text only — vision verification is manual)
 │   ├── db/                # Firestore database layer
 │   │   ├── users.js       # User CRUD
 │   │   ├── courses.js     # Course CRUD + seeding
