@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --env-file=.env -e \"import\\('./src/db/courses.js'\\).then\\(async \\(m\\) => { await m.seedCoursesFromConfig\\(\\); process.exit\\(0\\); }\\).catch\\(e => { console.error\\('ERR:', e.message\\); process.exit\\(1\\); }\\);\")",
+      "PowerShell($env:USE_TEST_COURSES = \"true\"; node --env-file=.env -e \"import\\('./src/db/courses.js'\\).then\\(async \\(m\\) => { const cfg = await import\\('../upsc-bot/config/courses.test.config.js'\\); console.log\\('Test config has', cfg.default.length, 'courses with prices:', cfg.default.map\\(c => '₹' + c.price\\).join\\(', '\\)\\); process.exit\\(0\\); }\\).catch\\(e => { console.error\\('ERR:', e.message\\); process.exit\\(1\\); }\\);\")",
+      "PowerShell($html = Invoke-WebRequest -Uri \"http://127.0.0.1:3000/sim\" -UseBasicParsing; \"GET /sim status: $\\($html.StatusCode\\)\"; \"HTML length: $\\($html.Content.Length\\) chars\"; \"Has 'Priya' title: $\\($html.Content -match 'Priya'\\)\")",
+      "PowerShell(Get-NetTCPConnection *)"
+    ]
+  }
+}

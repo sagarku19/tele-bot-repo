@@ -1,0 +1,834 @@
+
+================================================================================
+  UPSC BOT — MASTER BUILD FILE
+  Paste this entire file into Claude Code CLI (claude command)
+  It will build the complete project from scratch automatically
+================================================================================
+
+You are a senior full-stack engineer. Your job is to build a complete, 
+production-ready UPSC course sales Telegram bot system from scratch.
+
+Read every instruction carefully. Build everything in order. Do not skip 
+any step. After each major section, print "✅ SECTION X COMPLETE" so I 
+can track progress.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 — FOLDER STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Create this exact folder structure:
+
+upsc-bot/
+  src/
+    handlers/
+      start.js
+      message.js
+      photo.js
+      admin.js
+    ai/
+      gemini.js
+      prompts.js
+    db/
+      users.js
+      courses.js
+      payments.js
+    flows/
+      conversation.js
+      payment.js
+      access.js
+    utils/
+      logger.js
+      helpers.js
+    index.js
+  config/
+    firebase.js
+    courses.config.js
+  scripts/
+    seed.js
+    reset.js
+    test-local.js
+  docs/
+    ARCHITECTURE.md
+  .env.example
+  .gitignore
+  .eslintrc.json
+  .prettierrc
+  package.json
+  CLAUDE.md
+  README.md
+
+upsc-admin/
+  src/
+    app/
+      (auth)/login/page.js
+      (dashboard)/
+        layout.js
+        page.js
+        users/page.js
+        courses/page.js
+        payments/page.js
+        broadcast/page.js
+      api/
+        auth/[...nextauth]/route.js
+        stats/route.js
+        users/route.js
+        courses/route.js
+        payments/route.js
+        broadcast/route.js
+    components/
+      Sidebar.js
+      StatsCard.js
+      UserTable.js
+      PaymentCard.js
+    lib/
+      firebase.js
+      auth.js
+  .env.local.example
+  middleware.js
+  next.config.js
+  package.json
+
+Print the full tree after creating all folders.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 — PACKAGE FILES & CONFIG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+--- upsc-bot/package.json ---
+{
+  "name": "upsc-telegram-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node scripts/test-local.js",
+    "seed": "node scripts/seed.js",
+    "reset": "node scripts/reset.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "firebase-admin": "^12.0.0",
+    "@google/generative-ai": "^0.3.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.4.1",
+    "axios": "^1.6.7"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
+  }
+}
+
+--- upsc-bot/.eslintrc.json ---
+{
+  "env": { "es2022": true, "node": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "prefer-const": "error",
+    "no-var": "error"
+  }
+}
+
+--- upsc-bot/.prettierrc ---
+{
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5"
+}
+
+--- upsc-bot/.gitignore ---
+.env
+node_modules/
+.DS_Store
+serviceAccountKey.json
+*.log
+dist/
+
+--- upsc-bot/.env.example ---
+# ── Telegram ──────────────────────────────────────────
+BOT_TOKEN=get_from_botfather_on_telegram
+
+# ── Gemini AI ─────────────────────────────────────────
+# Get from: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key
+
+# ── Firebase ──────────────────────────────────────────
+# Get from: Firebase Console > Project Settings > Service Accounts > Generate Key
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY_ID=your_key_id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxx@your-project.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your_client_id
+FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
+
+# ── Admin ─────────────────────────────────────────────
+# Get your Telegram ID from: @userinfobot on Telegram
+ADMIN_TELEGRAM_ID=your_telegram_user_id
+
+# ── App ───────────────────────────────────────────────
+PORT=3000
+NODE_ENV=development
+
+--- upsc-admin/.env.local.example ---
+# Generate a random secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+NEXTAUTH_SECRET=generate_a_random_secret_here
+NEXTAUTH_URL=http://localhost:3001
+
+# Admin login credentials for the panel
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=changeme_use_strong_password
+
+# Same Firebase as bot
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxx@your-project.iam.gserviceaccount.com
+
+# Bot token (for broadcast API)
+BOT_TOKEN=same_as_bot
+
+NEXT_PUBLIC_BOT_NAME=Priya
+
+Print "✅ SECTION 2 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 — FIREBASE & DATABASE LAYER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build config/firebase.js:
+- Initialize firebase-admin using environment variables
+- Singleton pattern (don't reinitialize)
+- Export initFirebase() and getDb()
+- Crash with a clear message if env vars are missing
+
+Build src/db/users.js with these exports:
+- getUser(telegramId)           → returns user doc or null
+- createUser(telegramId, data)  → creates with fields:
+    telegramId, name, username, stage("new"), isPaid(false),
+    paidCourseIds([]), createdAt, lastSeen
+- updateUser(telegramId, data)  → partial update
+- updateStage(telegramId, stage)
+- getAllUsers()
+- getUsersByStage(stage)
+
+User stages in order: "new" → "engaged" → "interested" → "payment_pending" → "paid"
+
+Build src/db/courses.js with these exports:
+- getCourse(courseId)
+- getAllCourses()           → only where active === true
+- seedCoursesFromConfig()  → reads courses.config.js, writes to Firestore if not exists
+
+Build src/db/payments.js with these exports:
+- savePayment(data)         → fields: telegramId, courseId, screenshotUrl,
+                               status("pending"), geminiAnalysis, createdAt
+- getPaymentsByUser(telegramId)
+- getAllPayments(status)    → filter by status, optional
+- updatePaymentStatus(paymentId, status, analysis)
+
+Build config/courses.config.js:
+- Export array of 3 sample courses
+- Each course: id, name, description, price(number), 
+  channelId, groupId, welcomeMessage, active(true)
+- Example prices: 2999, 8999, 18999
+
+Print "✅ SECTION 3 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 — GEMINI AI LAYER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build src/ai/prompts.js:
+- Export a getSystemPrompt(stage, courses) function
+- Returns different system prompts based on user stage
+- Bot persona: "Priya" — warm, friendly UPSC mentor
+- Language: Hinglish (natural mix, like a real dost)
+  Use words like: arre, yaar, bilkul, dekh, bata, sach mein, seedha baat
+- Rules for all prompts:
+    * Never sound like a bot or AI
+    * Always ask ONE follow-up question
+    * Be encouraging, never pushy
+    * Max 3-4 sentences per reply
+- Stage-specific behavior:
+    new          → ask name and UPSC attempt year
+    engaged      → ask about optional subject, current preparation level
+    interested   → mention courses naturally, share one tip
+    payment_pending → guide to send gift card screenshot
+    paid         → welcome, motivate, share first study tip
+- Export PAYMENT_VERIFICATION_PROMPT separately:
+    Instruct Gemini to analyze a gift card screenshot and return JSON:
+    { isValid: bool, amount: string, date: string, cardType: string, notes: string }
+
+Build src/ai/gemini.js:
+- Export initGemini() → initialize GoogleGenerativeAI with GEMINI_API_KEY
+- Export async chat(stage, conversationHistory, newMessage, courses):
+    * Use gemini-1.5-flash model
+    * Keep last 10 messages of history
+    * On error: return a fallback Hinglish message like
+      "Arre yaar, thodi der mein baat karte hain! 🙏"
+- Export async verifyPaymentScreenshot(imageBase64, mimeType):
+    * Use gemini-1.5-flash vision
+    * Use PAYMENT_VERIFICATION_PROMPT
+    * Return parsed JSON { isValid, amount, date, cardType, notes }
+    * On parse error: return { isValid: false, notes: "Could not read screenshot" }
+
+Print "✅ SECTION 4 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 — BOT HANDLERS & FLOWS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build src/utils/logger.js:
+- export const log = (level, message, data) 
+  levels: INFO | WARN | ERROR
+  format: [2024-01-01 12:00:00] [INFO] message {data}
+- export shortcuts: logger.info(), logger.warn(), logger.error()
+
+Build src/utils/helpers.js:
+- sleep(ms)                       → Promise delay
+- chunkArray(arr, size)           → split array into chunks
+- formatCourseList(courses)       → Hinglish readable string of all courses with prices
+- sanitizeTelegramId(id)          → ensure string
+
+Build src/handlers/start.js:
+- Handle /start command
+- Get or create user in Firestore
+- Update lastSeen
+- Send warm Hinglish welcome: 
+  "Arre wah! 🎉 Main Priya hun, tumhari UPSC journey mein help karne ke liye.
+   Pehle ye batao — tumhara naam kya hai aur kaunsa attempt hai tumhara? 😊"
+- Set stage to "new"
+
+Build src/handlers/message.js:
+- Handle all text messages
+- Get user from DB (create if not exists)
+- Update lastSeen
+- Build conversation history from user.chatHistory (last 10 messages)
+- Call conversation flow → { reply, newStage, saveHistory }
+- Send reply
+- Update stage if changed
+- Save new message to user.chatHistory array in Firestore
+
+Build src/handlers/photo.js:
+- Handle photo and document messages
+- If user stage is NOT "payment_pending":
+    reply: "Arre yaar, pehle course choose karo, phir payment karo! 😄"
+    return
+- Send: "Checking kar raha hun... ek second 🙏"
+- Get the highest resolution photo
+- Download file using ctx.telegram.getFile then fetch the file URL
+- Convert to base64
+- Call payment flow
+- Handle errors gracefully
+
+Build src/handlers/admin.js:
+- Check ADMIN_TELEGRAM_ID for every command, return silently if not admin
+- /stats → fetch from DB:
+    Total users, Paid users, Today new users (createdAt >= today),
+    Stage breakdown (new/engaged/interested/payment_pending/paid counts)
+    Format as clean text message
+- /broadcast <message> → 
+    Get all users, send message to each with 100ms delay between
+    Reply with: "Sent to X users, Failed: Y"
+- /listpaid → list paid users: name, username, courses, paid date
+- /pending → list users in payment_pending stage
+- /addcourse → "courses.config.js edit karo aur restart karo 🙏"
+- /help → list all admin commands
+
+Build src/flows/conversation.js:
+- Export async processMessage(user, messageText, courses):
+    Returns { reply, newStage }
+- Build history from user.chatHistory
+- Determine stage transitions:
+    if stage=new and message contains a name → move to "engaged"
+    if stage=engaged and shows interest in courses → move to "interested"  
+    if stage=interested and user asks price/how to buy → move to "payment_pending"
+    if stage=payment_pending → remind to send screenshot
+- Call gemini.chat() with correct stage prompt
+- Return reply and updated stage
+
+Build src/flows/payment.js:
+- Export async processPaymentScreenshot(ctx, user, fileId):
+- Download photo from Telegram:
+    1. ctx.telegram.getFile(fileId) → gets file_path
+    2. Construct URL: https://api.telegram.org/file/bot{TOKEN}/{file_path}
+    3. Fetch and convert to base64
+- Call gemini.verifyPaymentScreenshot(base64, 'image/jpeg')
+- Save payment record to Firestore regardless of result
+- If isValid:
+    Call grantAccess flow
+    Return true
+- If not valid:
+    Send: "Yaar ye screenshot clear nahi hai 😅 
+           Dobara bhejo — gift card clearly dikhni chahiye with date"
+    Return false
+- Log all verification results
+
+Build src/flows/access.js:
+- Export async grantAccess(ctx, user, courseId):
+- Get course from DB
+- Create Telegram invite link for channel:
+    ctx.telegram.createChatInviteLink(course.channelId, {
+      name: user.name, member_limit: 1, expire_date: 0
+    })
+- If course.groupId exists, create group invite link too
+- Update user: isPaid=true, push courseId to paidCourseIds, stage="paid"
+- Send to user:
+    course.welcomeMessage + "\n\n"
+    "Channel link: " + channelInviteLink
+    "Group link: " + groupInviteLink (if exists)
+- Notify admin via ADMIN_TELEGRAM_ID:
+    "💰 New payment! {name} (@{username}) bought {courseName}"
+
+Print "✅ SECTION 5 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6 — MAIN ENTRY POINT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build src/index.js with this exact startup sequence:
+1. dotenv.config()
+2. Validate required env vars — crash with clear message if missing:
+   BOT_TOKEN, GEMINI_API_KEY, FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY,
+   FIREBASE_CLIENT_EMAIL, ADMIN_TELEGRAM_ID
+3. initFirebase()
+4. initGemini()
+5. seedCoursesFromConfig() — log how many courses seeded
+6. Create Telegraf bot instance
+7. Register handlers in this order:
+   - Admin commands (before catch-all)
+   - /start command
+   - Photo/document handler
+   - Text message handler (catch-all last)
+8. Start Express server on PORT:
+   - GET /health → { status: "ok", uptime: process.uptime(), 
+                      version: "1.0.0", env: NODE_ENV }
+9. bot.launch() with polling
+10. Handle SIGINT and SIGTERM for graceful shutdown
+11. Log "🤖 UPSC Bot running on port {PORT}" on success
+
+Print "✅ SECTION 6 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 7 — SCRIPTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build scripts/test-local.js:
+Tests WITHOUT needing a real Telegram connection.
+Run each test and print PASS ✅ or FAIL ❌:
+
+Test 1 — Firebase connection:
+  - Connect to Firestore
+  - Write: { test: true, createdAt: new Date() } to collection "test_runs"
+  - Read it back
+  - Delete it
+  - PASS if all succeed
+
+Test 2 — Gemini AI:
+  - Send: "Reply with exactly these words: UPSC_BOT_TEST_OK"
+  - PASS if response contains "UPSC_BOT_TEST_OK"
+
+Test 3 — Course config:
+  - Import courses.config.js
+  - PASS if array has at least 1 course with id, name, price
+
+Test 4 — Environment variables:
+  - Check all required vars exist
+  - PASS if all present, list missing ones if FAIL
+
+Print summary: "X/4 tests passed"
+
+Build scripts/seed.js:
+- Read courses.config.js
+- Write each course to Firestore courses collection
+- Skip if already exists (check by id)
+- Print: "Seeded X courses, skipped Y"
+
+Build scripts/reset.js:
+- Add a confirmation prompt: "Type RESET to confirm deleting all test data:"
+- Only delete documents in: test_runs collection
+- Never delete users, courses, or payments
+- Print what was deleted
+
+Print "✅ SECTION 7 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 8 — NEXT.JS ADMIN PANEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Run this command to create Next.js project:
+  cd .. && npx create-next-app@latest upsc-admin --js --tailwind --eslint --app --src-dir --no-experimental-app
+
+Then cd upsc-admin and run:
+  npm install firebase-admin next-auth recharts
+
+Update package.json scripts:
+  "dev": "next dev -p 3001"
+  "start": "next start -p 3001"
+
+Build src/lib/firebase.js (same firebase-admin pattern as bot)
+
+Build src/lib/auth.js:
+- NextAuth CredentialsProvider
+- Check against ADMIN_EMAIL and ADMIN_PASSWORD env vars
+- JWT session strategy
+- signIn page: "/login"
+
+Build src/app/api/auth/[...nextauth]/route.js
+
+Build middleware.js at project root:
+- Protect all routes except /login and /api/auth/*
+- Redirect to /login if not authenticated
+
+Build all API routes (each must check session, return 401 if not authenticated):
+
+src/app/api/stats/route.js — GET:
+  Returns { totalUsers, paidUsers, todayNewUsers, stageBreakdown }
+
+src/app/api/users/route.js — GET:
+  Returns all users sorted by createdAt desc, limit 100
+
+src/app/api/courses/route.js:
+  GET → all active courses
+  POST → add new course
+  PATCH → update course fields
+  DELETE → soft delete (set active: false)
+
+src/app/api/payments/route.js:
+  GET → all payments, supports ?status=pending|verified|rejected
+  PATCH → update payment status
+
+src/app/api/broadcast/route.js — POST:
+  Body: { message, targetStage (optional) }
+  Fetch matching users, send via Telegram Bot API
+  Sleep 50ms between each message
+  Return { sent, failed }
+
+Build all UI pages with dark Tailwind theme (#0f172a bg, #1e293b cards, #3b82f6 accent):
+
+src/app/(auth)/login/page.js:
+  Centered card with UPSC Bot Admin title
+  Email + password + sign in button
+  Uses next-auth signIn()
+  Show error on wrong credentials
+
+src/components/Sidebar.js:
+  Fixed left sidebar, 240px
+  Links: Dashboard, Users, Courses, Payments, Broadcast
+  Active link in blue
+  Logout button at bottom
+
+src/app/(dashboard)/layout.js:
+  Sidebar + main content
+  Redirect to /login if no session
+
+src/app/(dashboard)/page.js — Dashboard:
+  4 StatsCards: Total Users, Paid Users, Today New, Revenue
+  Bar chart (recharts) of stage breakdown
+  Recent 5 users table
+  Auto-refresh every 30 seconds
+
+src/components/StatsCard.js:
+  Props: title, value, subtitle, color
+  Dark card with colored left border
+
+src/app/(dashboard)/users/page.js:
+  Search by name/username
+  Filter by stage dropdown
+  Table: Name, Username, Stage badge, Paid, Joined, Last seen
+  Stage badge colors: new=gray, engaged=blue, interested=yellow,
+    payment_pending=orange, paid=green
+
+src/app/(dashboard)/courses/page.js:
+  Course cards with name, price, description, channelId
+  Add Course inline form
+  Edit and Delete buttons
+
+src/app/(dashboard)/payments/page.js:
+  Tabs: Pending | Verified | Rejected
+  Each payment: user name, course, date, Gemini analysis, screenshot
+  Verify (green) and Reject (red) buttons for pending
+
+src/app/(dashboard)/broadcast/page.js:
+  Message textarea
+  Target dropdown: All / Paid only / Unpaid only / By stage
+  Recipient count preview
+  Confirm before send
+  Results card after send
+
+Print "✅ SECTION 8 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 9 — DOCUMENTATION FILES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build CLAUDE.md in the root folder (parent of upsc-bot and upsc-admin).
+This is the most important file. Claude Code reads this every session.
+Include ALL of these sections with real details from the codebase:
+
+# UPSC Bot — Project Bible
+
+## What this project does
+## Tech stack (both projects)
+## Complete folder structure with one-line description per file
+## How to run locally (exact commands, both projects)
+## All environment variables with where to get each value
+## Firebase schema (every collection, every field, every type)
+## User stage flow diagram in text
+## How the conversation flow works
+## How payment screenshot verification works (step by step)
+## How Telegram invite links are generated
+## Admin panel pages and URLs
+## All npm scripts for both projects
+## All Telegram admin commands
+## Coding conventions used in this project
+## How to add a new course (exact steps)
+## How to add a new conversation stage (exact steps)
+## Known limitations
+## Do NOT change these things (critical list)
+
+Build upsc-bot/README.md:
+  Title, what it does, prerequisites, 5-step setup, running, testing
+
+Build upsc-admin/README.md:
+  Title, what it does, prerequisites, 5-step setup, login instructions
+
+Build upsc-bot/docs/ARCHITECTURE.md:
+  Text diagram of: User → Telegram → Bot → Gemini AI → Firebase
+  Explain each component's role
+
+Print "✅ SECTION 9 COMPLETE"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 10 — INSTALL & VERIFY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Run: cd upsc-bot && npm install
+2. Run: cd ../upsc-admin && npm install
+3. Scan ALL files in upsc-bot/src/ and fix:
+   - Any missing import statements
+   - Any hardcoded values that should use process.env
+   - Any async function missing try/catch
+   - Any handler missing error logging
+4. Scan ALL files in upsc-admin/src/ and fix:
+   - Any API route missing session check
+   - Any missing import
+   - Any Tailwind class that looks incorrect
+5. Print a final file manifest: every file created, with a one-line description
+
+Then print this final summary:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 BUILD COMPLETE
+
+Next steps:
+1. cp upsc-bot/.env.example upsc-bot/.env
+2. cp upsc-admin/.env.local.example upsc-admin/.env.local
+3. Fill in your keys in both .env files
+4. cd upsc-bot && npm test
+5. cd upsc-bot && npm run dev        (runs on port 3000)
+6. cd upsc-admin && npm run dev      (runs on port 3001)
+7. Open http://localhost:3001 for admin panel
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Print "✅ SECTION 10 COMPLETE — ALL DONE"
+
+
+================================================================================
+  UTILITY AGENTS — Paste any of these individually into Claude Code
+  whenever you need to do that specific task
+================================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: ADD NEW COURSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read upsc-bot/config/courses.config.js.
+Add a new course to the array. Ask me for:
+  1. Course name
+  2. Description (1-2 lines)
+  3. Price in rupees
+  4. Telegram channel ID (e.g. -100xxxxxxxxxx)
+  5. Telegram group ID (optional)
+  6. Welcome message to send after payment
+
+Generate a unique id from the name (lowercase, hyphens).
+Add it with active: true.
+Show me the final config after adding.
+Tell me to run: npm run seed — to push it to Firebase.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: TUNE BOT PERSONALITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read upsc-bot/src/ai/prompts.js.
+I will give you 5-10 example messages that show how I talk to my students.
+Rewrite ALL the system prompts in prompts.js to match my exact tone and style.
+Keep the stage logic intact, only change the language, tone, and examples.
+After rewriting, show me a sample conversation for each stage so I can verify.
+Save the updated file.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: DEBUG AN ERROR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md first so you understand the project structure.
+I have this error: [PASTE YOUR ERROR HERE]
+It happened when: [DESCRIBE WHAT YOU WERE DOING]
+
+Do this:
+1. Identify the exact file and line causing the issue
+2. Read that file and surrounding files
+3. Explain why the error happened in simple terms
+4. Fix it
+5. Check if the same bug exists anywhere else in the codebase
+6. Tell me exactly what you changed
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: ADD NEW ADMIN COMMAND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md and upsc-bot/src/handlers/admin.js.
+Add a new Telegram admin command.
+The command should do: [DESCRIBE WHAT IT SHOULD DO]
+Make sure it:
+  - Checks ADMIN_TELEGRAM_ID before running
+  - Has error handling
+  - Returns a clean formatted message
+  - Is added to the /help command list
+Save the file and show me the new command.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: PROJECT QUALITY AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md. Then scan every file in upsc-bot/src/ and upsc-admin/src/.
+Audit against this checklist and print PASS ✅ or FAIL ❌ for each:
+
+  [ ] CLAUDE.md exists and has all required sections
+  [ ] Every async function has try/catch
+  [ ] No hardcoded secrets or API keys
+  [ ] .env.example has every used environment variable
+  [ ] Every API route in admin checks session (returns 401 if not auth)
+  [ ] Logger is used instead of raw console.log in production paths
+  [ ] Admin handler checks ADMIN_TELEGRAM_ID on every command
+  [ ] Photo handler checks user stage before processing
+  [ ] All imports resolve correctly (no missing modules)
+  [ ] npm test script exists and tests Firebase + Gemini
+  [ ] /health endpoint exists and returns status
+  [ ] No unused imports or variables (ESLint would catch these)
+  [ ] courses.config.js has at least one course with all required fields
+  [ ] .gitignore includes .env and serviceAccountKey.json
+  [ ] README.md has setup instructions
+
+For every FAIL: fix it immediately.
+Print final score: X/15 checks passed.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: DEPLOY TO PRODUCTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md first.
+Help me deploy both projects to production.
+
+For upsc-bot (Telegram bot):
+  1. Create a Procfile for Railway/Render: web: node src/index.js
+  2. Create a .railwayignore / .renderignore (same as .gitignore)
+  3. Switch bot from polling to webhook mode:
+     - Add SET_WEBHOOK=true to .env.example
+     - In index.js: if SET_WEBHOOK=true, use webhookCallback instead of launch()
+     - Webhook URL format: https://yourdomain.com/telegram-webhook
+  4. Add PORT from environment (Railway/Render sets this automatically)
+  5. Show me the exact Railway/Render deployment steps
+
+For upsc-admin (Next.js admin):
+  1. Run: npm run build — fix any build errors
+  2. Create vercel.json if needed
+  3. Show me exact Vercel deployment steps
+  4. Tell me which env vars to add in the Vercel dashboard
+
+After deployment guide, tell me how to set the Telegram webhook:
+  curl -X POST "https://api.telegram.org/bot{TOKEN}/setWebhook" \
+       -d "url=https://yourdomain.com/telegram-webhook"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: TRAIN ON REAL CHAT DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md and upsc-bot/src/ai/prompts.js.
+I will paste 20-30 real chat messages between me and my students.
+Do this:
+  1. Analyze the language patterns, common questions, my typical answers
+  2. Extract the top 10 most common student questions
+  3. Write specific answer templates for each in my style
+  4. Update the prompts.js system prompts to include these patterns
+  5. Add a FAQ section to the prompts so Gemini answers them consistently
+  6. Create a new file: upsc-bot/src/ai/faq.js with the Q&A pairs
+     so I can keep adding to it easily
+Save all changes and show a before/after comparison of one prompt.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: ADD NEW ADMIN PANEL PAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read CLAUDE.md and scan upsc-admin/src/app/(dashboard)/.
+I want to add a new admin page.
+Page purpose: [DESCRIBE WHAT THE PAGE SHOULD DO]
+
+Do this:
+  1. Create the page file at the right path
+  2. Create the API route it needs
+  3. Add it to the Sidebar.js navigation
+  4. Follow the same dark Tailwind theme as other pages
+  5. Add session check to the API route
+  6. Show me the final page structure
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AGENT: UPDATE CLAUDE.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read the current CLAUDE.md.
+Then scan all files in upsc-bot/ and upsc-admin/ for anything that has
+changed or been added since CLAUDE.md was last written.
+Update CLAUDE.md to reflect:
+  - Any new files added
+  - Any new env variables
+  - Any new npm scripts
+  - Any changed business logic
+  - Any new admin commands
+  - Any new courses or batches
+Keep the existing structure, just update the outdated parts.
+Tell me exactly what you changed.
+
+================================================================================
+  HOW TO USE THIS FILE
+================================================================================
+
+FIRST TIME SETUP (build everything):
+  1. Open terminal in an empty folder
+  2. Run: claude
+  3. Paste everything from the top of this file
+     down to "SECTION 10 COMPLETE"
+  4. Wait for all 10 sections to complete
+  5. Fill in your .env files
+  6. Run: cd upsc-bot && npm test
+
+USING INDIVIDUAL AGENTS (ongoing work):
+  - Open: claude (in your project folder)
+  - Copy only the specific AGENT section you need
+  - Paste it into the Claude Code terminal
+  - Fill in the [BRACKETED PLACEHOLDERS] before pasting
+
+RECOMMENDED: Run "AGENT: PROJECT QUALITY AUDIT" after every major change.
+
+================================================================================
