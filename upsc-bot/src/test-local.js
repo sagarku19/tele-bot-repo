@@ -24,7 +24,7 @@ function fail(name, error) {
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n🔧 Test 1: Environment Variables');
 try {
-  const required = ['BOT_TOKEN', 'GEMINI_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
+  const required = ['BOT_TOKEN', 'ANTHROPIC_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];
   const missing = required.filter((k) => !process.env[k]);
 
   if (missing.length > 0) {
@@ -111,17 +111,14 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// Test 4: AI provider chat (via the active provider facade)
+// Test 4: Claude chat round-trip
 // ════════════════════════════════════════════════════════════════════════
-console.log('\n🤖 Test 4: AI provider chat');
+console.log('\n🤖 Test 4: Claude chat');
 try {
-  const { initProviders, chat, CHAT_FALLBACK_REPLY, getActiveProviderName } = await import(
-    './ai/providers/index.js'
-  );
+  const { init, chat } = await import('./ai/claude.js');
+  const { CHAT_FALLBACK_REPLY } = await import('./ai/constants.js');
 
-  initProviders();
-  const active = getActiveProviderName();
-  console.log(`    Active provider: ${active}`);
+  init();
 
   const reply = await chat(
     'You are a test assistant. Reply with exactly: "Test successful"',
@@ -130,53 +127,18 @@ try {
   );
 
   if (!reply || reply.length === 0) {
-    fail(`${active} chat`, 'Empty response');
+    fail('Claude chat', 'Empty response');
   } else if (reply === CHAT_FALLBACK_REPLY) {
     fail(
-      `${active} chat`,
-      `Got the Hinglish fallback — real ${active} call failed. Check the [${active}] error log above for the 4xx/5xx.`,
+      'Claude chat',
+      'Got the Hinglish fallback — real Anthropic call failed. Check the [claude] error log above for the 4xx/5xx.',
     );
   } else {
-    pass(`${active} chat — got reply (${reply.length} chars)`);
+    pass(`Claude chat — got reply (${reply.length} chars)`);
     console.log(`    🗣️  "${reply.substring(0, 100)}${reply.length > 100 ? '...' : ''}"`);
   }
 } catch (err) {
-  fail('AI provider chat', err.message);
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// Test 4b: xAI provider chat — skipped unless XAI_API_KEY is set
-// ════════════════════════════════════════════════════════════════════════
-console.log('\n🤖 Test 4b: xAI provider chat (skipped if XAI_API_KEY missing)');
-if (!process.env.XAI_API_KEY) {
-  console.log('  ⏭️  SKIP — XAI_API_KEY not set');
-} else {
-  try {
-    const xai = await import('./ai/providers/xai.js');
-    const { CHAT_FALLBACK_REPLY } = await import('./ai/providers/index.js');
-
-    xai.init();
-
-    const reply = await xai.chat(
-      'You are a test assistant. Reply with exactly: "Test successful"',
-      [],
-      'Hello, test message',
-    );
-
-    if (!reply || reply.length === 0) {
-      fail('xAI chat', 'Empty response');
-    } else if (reply === CHAT_FALLBACK_REPLY) {
-      fail(
-        'xAI chat',
-        'Got the Hinglish fallback — real xAI call failed. Check the [xAI] error log above for the 4xx/5xx.',
-      );
-    } else {
-      pass(`xAI chat — got reply (${reply.length} chars)`);
-      console.log(`    🗣️  "${reply.substring(0, 100)}${reply.length > 100 ? '...' : ''}"`);
-    }
-  } catch (err) {
-    fail('xAI provider chat', err.message);
-  }
+  fail('Claude chat', err.message);
 }
 
 // ════════════════════════════════════════════════════════════════════════
