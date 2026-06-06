@@ -1,15 +1,27 @@
 # 🤖 UPSC Bot
 
-A Telegram bot for UPSC exam preparation — powered by Google Gemini AI, Firebase, and Telegraf.
+A Telegram bot for UPSC exam preparation — powered by Google Gemini AI (or Grok via xAI), Firebase, and Telegraf.
 
-## Features
+## What it actually does
 
-- **AI Q&A** — Ask any UPSC-related question and get instant AI-powered answers
-- **Answer Evaluation** — Send a photo of your handwritten answer for AI feedback
-- **Course Management** — Browse and enrol in courses
-- **Payment Flow** — Submit payment screenshots for admin verification
-- **Access Control** — Automatic invite-link generation for paid channels/groups
-- **Admin Tools** — `/stats` and `/broadcast` commands for admins
+The bot is a Hinglish UPSC mentor named **Priya** that runs a staged sales funnel and only unlocks full tutor features after a course purchase. It is **not** a generic Q&A bot — arbitrary photos and questions before purchase are routed through the funnel, not answered directly.
+
+### Conversation funnel
+`new → engaged → interested → payment_pending → paid`
+
+- **`new`** — `/start` greets the user and asks for name + attempt year.
+- **`engaged` / `interested`** — Priya probes prep level and walks the course catalog in Hinglish until the user signals intent.
+- **`payment_pending`** — bot asks for a UPI / gift-card payment **screenshot**. Photos sent at any other stage are ignored.
+- **`paid`** — bot generates a single-use Telegram invite link to the course's channel + group and switches to tutor mode.
+
+### Post-purchase tutor mode (only at `paid`)
+- AI Q&A on UPSC topics
+- Handwritten-answer evaluation from photos
+- MCQs and book references (Laxmikanth, Spectrum, Shankar IAS, NCERTs)
+
+### Operator tools
+- Admin panel (`upsc-admin/`, port 3001) for users, courses, payments, broadcasts
+- Telegram admin commands gated by `ADMIN_TELEGRAM_ID` (see [Admin Commands](#admin-commands) below)
 
 ---
 
@@ -194,13 +206,17 @@ Common candidates and their free-tier daily request caps:
 upsc-bot/
 ├── src/
 │   ├── handlers/          # Telegraf command & message handlers
-│   │   ├── start.js       # /start command
-│   │   ├── message.js     # Catch-all text handler (AI Q&A)
-│   │   ├── photo.js       # Photo handler (answer evaluation)
-│   │   └── admin.js       # Admin-only commands (/stats, /broadcast)
-│   ├── ai/                # Gemini AI integration
-│   │   ├── gemini.js      # Gemini API client
-│   │   └── prompts.js     # Prompt templates
+│   │   ├── start.js       # /start — reset user to "new", send Hinglish welcome
+│   │   ├── message.js     # Catch-all text — delegates to flows/conversation.js (stage router)
+│   │   ├── photo.js       # Photo handler — only acts at stage "payment_pending"; routes to flows/payment.js
+│   │   └── admin.js       # Admin-only commands (gated by ADMIN_TELEGRAM_ID)
+│   ├── ai/                # Pluggable AI provider layer + prompt templates
+│   │   ├── prompts.js     # STAGE_PROMPTS, vision-verification prompt, buildConversationPrompt()
+│   │   ├── constants.js   # Shared CHAT_FALLBACK_REPLY string (consistent voice across providers)
+│   │   └── providers/     # One module per provider, called via the facade
+│   │       ├── index.js   # Registry + facade: init, chat(), verifyPaymentScreenshot()
+│   │       ├── gemini.js  # Gemini (text + vision); default
+│   │       └── xai.js     # xAI / Grok (text only; vision always routes to Gemini)
 │   ├── db/                # Firestore database layer
 │   │   ├── users.js       # User CRUD
 │   │   ├── courses.js     # Course CRUD + seeding

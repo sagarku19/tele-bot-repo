@@ -21,7 +21,17 @@ This is the Next.js admin panel for the UPSC Telegram Bot. It provides a secure,
    ```bash
    cp .env.local.example .env.local
    ```
-   *Note: Ensure your `FIREBASE_PRIVATE_KEY` is formatted correctly with `\n` replacing literal newlines, or wrap it in double quotes.*
+
+   | Variable                | Required? | Description                                                                                                                                  |
+   | ----------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `NEXTAUTH_SECRET`       | yes       | Random secret used to sign JWTs. Generate with `openssl rand -base64 32`.                                                                    |
+   | `NEXTAUTH_URL`          | yes       | Public URL of this admin (e.g. `http://localhost:3001`). NextAuth needs it to build callback URLs.                                           |
+   | `ADMIN_EMAIL`           | yes       | The single admin login email.                                                                                                                |
+   | `ADMIN_PASSWORD`        | yes       | The admin password. ⚠️ Compared with plain `===` — no hashing. Use a strong value and don't reuse it elsewhere.                              |
+   | `FIREBASE_PROJECT_ID`   | yes       | Firebase project ID — must point at the **same** Firestore project as `upsc-bot`.                                                            |
+   | `FIREBASE_CLIENT_EMAIL` | yes       | Firebase service account email.                                                                                                              |
+   | `FIREBASE_PRIVATE_KEY`  | yes       | Firebase service account private key. Keep `\n` escapes intact (or wrap the whole value in double quotes).                                   |
+   | `BOT_TOKEN`             | yes       | Telegram bot token, used by `/api/broadcast` to call `sendMessage`. ⚠️ **Variable name is `BOT_TOKEN`, not `TELEGRAM_BOT_TOKEN`** — `app/api/broadcast/route.js` reads `process.env.BOT_TOKEN`. Use the same token as the bot. |
 
 3. **Run the Development Server**
    ```bash

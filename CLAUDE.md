@@ -32,8 +32,9 @@ A stage-flow change usually crosses **Bot + AI-Prompts + Admin** (the badge colo
 ```
 upsc-bot/
 ├── config/
-│   ├── courses.config.js     # 3 seeded courses (prelims-2026, mains-answer-writing, current-affairs-monthly)
-│   └── firebase.js           # lazy getDb() singleton
+│   ├── courses.config.js        # 3 seeded courses (prelims-2026, mains-answer-writing, current-affairs-monthly)
+│   ├── courses.test.config.js   # alternate catalog loaded when USE_TEST_COURSES=true (test-* IDs)
+│   └── firebase.js              # lazy getDb() singleton
 └── src/
     ├── index.js              # boot: env check → Firebase → AI providers → seed courses → handlers → Express /health → bot.launch (polling)
     ├── test-local.js         # smoke tests: env vars, courses, Firestore write/read/delete, active-provider chat, xai chat (skipped if XAI_API_KEY missing), helpers
@@ -161,6 +162,8 @@ Transitions (in `flows/conversation.js`):
 - `ADMIN_TELEGRAM_ID` — numeric Telegram user ID for admin-command gating. Without it, admin commands are disabled. Get from [@userinfobot](https://t.me/userinfobot).
 - `FIREBASE_DATABASE_URL` — listed in `.env.example` but unused (we use Firestore, not RTDB).
 - `PORT` — default 3000, only for Express `/health`.
+- `ENABLE_SIMULATOR` *(optional)* — set to `true` to expose the `/sim` browser chat UI at `http://127.0.0.1:<PORT>/sim`. When enabled, Express binds to `127.0.0.1` only, so `/sim` and `/health` are unreachable from the LAN. Off by default. See `upsc-bot/README.md` → "Browser conversation simulator" for the full workflow.
+- `USE_TEST_COURSES` *(optional)* — set to `true` to load `config/courses.test.config.js` instead of the production catalog. ⚠️ Seeding still writes to the **same Firestore project** as production — `test-*` docs persist as separate documents until you delete them from the Firebase console. Once both catalogs have been seeded, `getAllCourses()` returns the union regardless of this flag.
 
 ### `upsc-admin/.env.local`
 - `NEXTAUTH_SECRET` — `openssl rand -base64 32`.
@@ -194,6 +197,11 @@ Expected bot boot logs:
 [boot] ✅ All handlers registered (admin → start → photo → text)
 [boot] 🤖 Bot running on port 3000
 ```
+
+### Dev tools (no Telegram required)
+- **Browser simulator** — set `ENABLE_SIMULATOR=true` and open `http://127.0.0.1:3000/sim` to chat with Priya from the browser. Uses the real `processMessage()` + real Firestore-read for courses, but the simulator user is ephemeral (no `users` writes) and chat history resets on bot restart. Sidebar shows current stage, `selectedCourseId`, message count, and a `✅ real` / `❌ fallback` badge per turn.
+- **Test course catalog** — set `USE_TEST_COURSES=true` to seed/use `config/courses.test.config.js` (IDs are `test-*` so they don't collide). Boot log will show `[courses] Loaded 🧪 TEST catalog (N courses)`. Delete the `test-*` docs in Firestore when you're done so `getAllCourses()` doesn't keep returning them.
+- Full walkthroughs and caveats: `upsc-bot/README.md` → "Dev tools".
 
 ## Bot conversation flow
 
