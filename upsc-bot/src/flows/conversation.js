@@ -1,4 +1,4 @@
-import { chat } from '../ai/providers/index.js';
+import { chat } from '../ai/claude.js';
 import { buildConversationPrompt } from '../ai/prompts.js';
 import { getAllCourses } from '../db/courses.js';
 import { formatPrice } from '../utils/helpers.js';
