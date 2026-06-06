@@ -3,11 +3,11 @@
 ## Project overview
 An automated AI-powered Telegram chatbot (UPSC Bot) that engages users, guides them through UPSC current-affairs and exam preparation, and sells courses using conversational Hinglish. Split into two integrated codebases:
 
-1. **upsc-bot** — Telegraf-based Node.js Telegram bot. Customer-facing. Conversation engine powered by Gemini, payment screenshot processing, channel/group access provisioning.
+1. **upsc-bot** — Telegraf-based Node.js Telegram bot. Customer-facing. Conversation engine powered by Claude, payment screenshot processing, channel/group access provisioning.
 2. **upsc-admin** — Next.js 16 admin dashboard on port 3001. Operator-facing. Reads/writes the same Firestore as the bot. Used to verify payments, manage courses, broadcast messages, and watch funnel metrics.
 
 **Tech stack:**
-- **Bot:** Node.js (ESM, `"type": "module"`), Telegraf 4.x, `@google/generative-ai` (Gemini 2.5 Flash, thinking disabled), `firebase-admin`, Express (only for `/health`), `axios`, `node-cron` (dependency, not yet used), `dotenv`.
+- **Bot:** Node.js (ESM, `"type": "module"`), Telegraf 4.x, `@anthropic-ai/sdk` (Claude Haiku 4.5), `firebase-admin`, Express (only for `/health`), `axios`, `node-cron` (dependency, not yet used), `dotenv`.
 - **Admin:** Next.js **16.2.7** (App Router), React 19.2, Tailwind CSS **v4** (CSS-based config — no `tailwind.config.js`), NextAuth 4 (JWT + Credentials), `firebase-admin`, Recharts.
 - **Shared DB:** Firebase Firestore via `firebase-admin` service-account credentials.
 
@@ -19,7 +19,7 @@ An automated AI-powered Telegram chatbot (UPSC Bot) that engages users, guides t
 |---|---|---|
 | **Bot** | `upsc-bot/src/handlers/*`, `upsc-bot/src/flows/*`, `upsc-bot/src/index.js` | Telegraf commands, message routing, payment flow, access grant |
 | **Admin** | `upsc-admin/app/(dashboard)/*`, `upsc-admin/app/api/*`, `upsc-admin/components/*` | Next.js pages, API routes, dashboard UI, dark Tailwind theme |
-| **AI-Prompts** | `upsc-bot/src/ai/providers/*`, `upsc-bot/src/ai/prompts.js`, `upsc-bot/src/ai/constants.js` | Persona (Hinglish "Priya"), stage prompts, vision verification prompt, per-provider chat() implementations, provider facade & active-provider selection |
+| **AI-Prompts** | `upsc-bot/src/ai/claude.js`, `upsc-bot/src/ai/prompts.js`, `upsc-bot/src/ai/constants.js` | Persona (Hinglish "Priya"), stage prompts, Anthropic chat() implementation |
 | **Database** | `upsc-bot/src/db/{users,courses,payments}.js`, `upsc-bot/config/firebase.js`, `upsc-admin/lib/firebase.js` | Firestore schema and CRUD; affects both sides |
 
 A stage-flow change usually crosses **Bot + AI-Prompts + Admin** (the badge color + chart). A "verify payment manually" change is usually **Admin** alone — except today the verify endpoint doesn't actually grant access (see Known limitations).
@@ -36,16 +36,13 @@ upsc-bot/
 │   ├── courses.test.config.js   # alternate catalog loaded when USE_TEST_COURSES=true (test-* IDs)
 │   └── firebase.js              # lazy getDb() singleton
 └── src/
-    ├── index.js              # boot: env check → Firebase → AI providers → seed courses → handlers → Express /health → bot.launch (polling)
-    ├── test-local.js         # smoke tests: env vars, courses, Firestore write/read/delete, active-provider chat, xai chat (skipped if XAI_API_KEY missing), helpers
+    ├── index.js              # boot: env check → Firebase → Claude → seed courses → handlers → Express /health → bot.launch (polling)
+    ├── test-local.js         # smoke tests: env vars, courses, Firestore write/read/delete, Claude chat, helpers
     ├── simulator.js          # optional /sim browser chat UI (gated by ENABLE_SIMULATOR=true)
     ├── ai/
-    │   ├── prompts.js        # STAGE_PROMPTS object, PAYMENT_VERIFICATION_PROMPT, buildConversationPrompt(stage, user, msg, catalog)
-    │   ├── constants.js      # CHAT_FALLBACK_REPLY (shared by all providers)
-    │   └── providers/
-    │       ├── index.js      # registry + facade: getActiveProviderName, initProviders, chat(), verifyPaymentScreenshot()
-    │       ├── gemini.js     # Gemini provider: init, chat, verifyPaymentScreenshot (vision)
-    │       └── xai.js        # xAI/Grok provider: init, chat (no vision in Round 1)
+    │   ├── claude.js         # Anthropic provider: init, chat
+    │   ├── prompts.js        # STAGE_PROMPTS object, buildConversationPrompt(stage, user, msg, catalog)
+    │   └── constants.js      # CHAT_FALLBACK_REPLY (shared)
     ├── db/
     │   ├── users.js          # getUser, createUser, updateUser, updateStage, getAllUsers
     │   ├── courses.js        # getCourse, getAllCourses (no active filter), seedCoursesFromConfig
@@ -57,7 +54,7 @@ upsc-bot/
     │   └── message.js        # catch-all text — delegates to flows/conversation.js, persists stage transitions
     ├── flows/
     │   ├── conversation.js   # processMessage(user, text) — the real stage router (NOT a "stageManager.js")
-    │   ├── payment.js        # processPaymentScreenshot — save screenshot as pending, reply "wait for verification", notify admin (manual review only; AI vision dormant)
+    │   ├── payment.js        # processPaymentScreenshot — save screenshot as pending, reply "wait for verification", notify admin (manual review only)
     │   └── access.js         # grantAccess — single-use invite links, mark user paid, send welcome
     └── utils/
         ├── helpers.js        # isAdmin, escapeMarkdownV2, formatPrice (₹ + en-IN), sleep, chunkArray, formatCourseList
@@ -81,7 +78,7 @@ upsc-admin/
 │   ├── Sidebar.js                           # Dashboard / Users / Courses / Payments / Broadcast + Logout
 │   ├── StatsCard.js                         # metric card, colored left border
 │   ├── UserTable.js                         # exports badgeColors map for stages
-│   └── PaymentCard.js                       # screenshot thumb + Gemini analysis + Verify/Reject buttons
+│   └── PaymentCard.js                       # screenshot thumb + Verify/Reject buttons
 └── app/                                     # NOTE: no `src/` directory — files live at app root
     ├── layout.js                            # Geist fonts, wraps with Providers
     ├── globals.css                          # Tailwind v4 + dark theme variables
@@ -105,12 +102,12 @@ upsc-admin/
 ### Data flow
 1. **User message:** text or photo arrives via Telegram.
 2. **Routing:** `handlers/message.js` (text) or `handlers/photo.js` (image) fetches the user from Firestore via `db/users.js`.
-3. **Stage logic:** `flows/conversation.js → processMessage(user, text)` picks the stage branch, calls `ai/providers/index.js → chat()` (which routes to the active provider — Gemini or xAI — based on `AI_PROVIDER`) with a stage-specific prompt from `ai/prompts.js`, returns `{ reply, newStage, selectedCourseId }`.
+3. **Stage logic:** `flows/conversation.js → processMessage(user, text)` picks the stage branch, calls `ai/claude.js → chat()` with a stage-specific prompt from `ai/prompts.js`, returns `{ reply, newStage, selectedCourseId }`.
 4. **Persistence:** the handler writes the new stage / selectedCourseId back to Firestore.
-5. **Payment branch:** photos in `payment_pending` stage route to `flows/payment.js`. Gemini vision parses the screenshot; on success → `flows/access.js → grantAccess` (Telegram `createChatInviteLink` for channel + group, mark user `paid`, notify admin).
+5. **Payment branch:** photos in `payment_pending` stage route to `flows/payment.js` — the bot saves the screenshot as a pending payment and notifies the admin for manual review.
 6. **Admin observation:** `upsc-admin` reads Firestore directly; no shared service runtime.
 
-⚠️ **Conversation history is in-memory only.** `flows/conversation.js:10` keeps a `Map<telegramId, history>` as a ring buffer of 20 messages, but each provider's `chat()` slices to the **last 10** before sending to the model — so the model sees 10, not 20. Firestore stores stage but not chat transcripts. History is lost on bot restart.
+⚠️ **Conversation history is in-memory only.** `flows/conversation.js:10` keeps a `Map<telegramId, history>` as a ring buffer of 20 messages, but `claude.js chat()` slices to the **last 10** before sending to the model — so the model sees 10, not 20. Firestore stores stage but not chat transcripts. History is lost on bot restart.
 
 ## Firebase schema
 
@@ -137,7 +134,6 @@ upsc-admin/
 - `courseId` (string).
 - `screenshotUrl` (string) — a `https://api.telegram.org/file/bot<BOT_TOKEN>/...` URL. ⚠️ **Embeds the live bot token** and expires after ~1h.
 - `status` (string) — `pending | verified | rejected`.
-- `geminiAnalysis` (string | null) — **JSON-stringified blob** of `{ isValid, amount, date, transactionId, confidence, isGiftCard, notes }`. Don't change to nested object without updating `PaymentCard.js`.
 - `verifiedAt`, `createdAt` (ISO strings).
 
 ### Stage flow
@@ -146,23 +142,20 @@ upsc-admin/
 Transitions (in `flows/conversation.js`):
 - `new → engaged`: any non-`/` message of length ≥ 2 (assumed to be the user's name).
 - `engaged → interested`: message contains any of a Hinglish/English keyword list (`course`, `price`, `kitna`, `paisa`, `haan`, `interested`, `dikha`, …).
-- `interested → payment_pending`: Gemini embeds `[SELECTED_COURSE:<id>]` in its reply. The flow strips the tag, captures the id, persists to `users.selectedCourseId`.
+- `interested → payment_pending`: Claude embeds `[SELECTED_COURSE:<id>]` in its reply. The flow strips the tag, captures the id, persists to `users.selectedCourseId`.
 - `payment_pending → paid`: **text never triggers it.** Only a successful payment verification in `flows/payment.js → grantAccess` flips it.
 
 ## Environment variables
 
 ### `upsc-bot/.env`
-- `BOT_TOKEN` — Telegram bot token from [@BotFather](https://t.me/BotFather). **Note: `BOT_TOKEN`, NOT `TELEGRAM_BOT_TOKEN`.** Hard-fail on missing.
-- `AI_PROVIDER` *(optional)* — active text provider for `chat()`. `gemini` (default) or `xai`. Vision (`verifyPaymentScreenshot()`) always routes to Gemini regardless. Unknown values fall back to `gemini`.
-- `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/). Required when `AI_PROVIDER=gemini` and for vision regardless.
-- `GEMINI_MODEL` *(optional)* — model ID. Defaults to `gemini-2.5-flash`. Override when free-tier quota is tight or to test other models (e.g. `gemini-3.1-flash-lite` has a 500/day free RPD vs 20/day on 2.5-flash). `thinkingBudget: 0` is set unconditionally — Flash-class models honour it, Lite models ignore it silently.
-- `XAI_API_KEY` *(optional)* — required only when `AI_PROVIDER=xai`. xAI's account needs credits/license before calls succeed (otherwise 403 with a billing link).
-- `XAI_MODEL` *(optional)* — Grok model ID. Defaults to `grok-4-fast-non-reasoning`.
+- `BOT_TOKEN` — Telegram bot token from [@BotFather](https://t.me/BotFather). Hard-fail on missing.
+- `ANTHROPIC_API_KEY` — from [Anthropic Console](https://console.anthropic.com/settings/keys). Hard-fail on missing.
+- `ANTHROPIC_MODEL` *(optional)* — model ID. Defaults to `claude-haiku-4-5`. Override to `claude-sonnet-4-6` for nuanced answers in the paid tutor stage.
 - `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` — service account. Private key newlines must be `\n`-escaped; `config/firebase.js` un-escapes.
 - `ADMIN_TELEGRAM_ID` — numeric Telegram user ID for admin-command gating. Without it, admin commands are disabled. Get from [@userinfobot](https://t.me/userinfobot).
 - `FIREBASE_DATABASE_URL` — listed in `.env.example` but unused (we use Firestore, not RTDB).
 - `PORT` — default 3000, only for Express `/health`.
-- `ENABLE_SIMULATOR` *(optional)* — set to `true` to expose the `/sim` browser chat UI at `http://127.0.0.1:<PORT>/sim`. When enabled, Express binds to `127.0.0.1` only, so `/sim` and `/health` are unreachable from the LAN. Off by default. See `upsc-bot/README.md` → "Browser conversation simulator" for the full workflow.
+- `ENABLE_SIMULATOR` *(optional)* — set to `true` to expose the `/sim` browser chat UI at `http://127.0.0.1:<PORT>/sim`. When enabled, Express binds to `127.0.0.1` only, so `/sim` and `/health` are unreachable from the LAN. Off by default.
 - `USE_TEST_COURSES` *(optional)* — set to `true` to load `config/courses.test.config.js` instead of the production catalog. ⚠️ Seeding still writes to the **same Firestore project** as production — `test-*` docs persist as separate documents until you delete them from the Firebase console. Once both catalogs have been seeded, `getAllCourses()` returns the union regardless of this flag.
 
 ### `upsc-admin/.env.local`
@@ -184,7 +177,7 @@ Transitions (in `flows/conversation.js`):
    ```bash
    cd upsc-bot && npm run test
    ```
-   Tests env vars, courses config, Firestore round-trip, Gemini round-trip, helpers.
+   Tests env vars, courses config, Firestore round-trip, Claude round-trip, helpers.
 4. **Start both** (two terminals):
    - Bot: `cd upsc-bot && npm run dev` → polls Telegram; Express health on port 3000.
    - Admin: `cd upsc-admin && npm run dev` → `http://localhost:3001`, login with `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
@@ -192,7 +185,7 @@ Transitions (in `flows/conversation.js`):
 Expected bot boot logs:
 ```
 [boot] ✅ Firebase ready
-[Gemini] Initialized with gemini-2.5-flash (thinking disabled)
+[claude] Initialized with claude-haiku-4-5
 [courses] Seeding complete — X new, Y already existed
 [boot] ✅ All handlers registered (admin → start → photo → text)
 [boot] 🤖 Bot running on port 3000
@@ -209,7 +202,7 @@ Persona: **Priya** — warm Hinglish UPSC mentor. Every prompt enforces: 3–5 l
 
 - **new** — `/start` resets here. Bot greets, asks for name + attempt year. → `engaged` on any reply.
 - **engaged** — probe preparation level; gently steer toward courses. → `interested` on course/price/`haan` keywords.
-- **interested** — present catalog (injected as `{{COURSE_CATALOG}}`), recommend, confirm. → `payment_pending` when Gemini emits `[SELECTED_COURSE:<id>]`.
+- **interested** — present catalog (injected as `{{COURSE_CATALOG}}`), recommend, confirm. → `payment_pending` when Claude emits `[SELECTED_COURSE:<id>]`.
 - **payment_pending** — remind to send screenshot. Only photos in `flows/payment.js` advance the stage.
 - **paid** — full UPSC tutor mode: MCQs, answer evaluation, book references (Laxmikanth, Spectrum, Shankar IAS, NCERTs).
 
@@ -220,7 +213,7 @@ Persona: **Priya** — warm Hinglish UPSC mentor. Every prompt enforces: 3–5 l
 - `/` — Dashboard: 4 StatsCards (Total / Paid / Today new / Revenue), Recharts BarChart of stage breakdown, recent 5 users. Polls every 30s.
 - `/users` — table with search + stage filter.
 - `/courses` — card grid with inline create/edit form. DELETE is soft (`active:false`).
-- `/payments` — tabs Pending / Verified / Rejected. PaymentCard shows screenshot + Gemini analysis.
+- `/payments` — tabs Pending / Verified / Rejected. PaymentCard shows screenshot + Verify/Reject buttons.
 - `/broadcast` — target stage select, message textarea, estimated recipient count, confirm + send.
 
 ### Admin Telegram commands (in the bot)
@@ -234,7 +227,7 @@ All gated by `isAdmin(ctx.from.id)` against `process.env.ADMIN_TELEGRAM_ID`.
 
 ## Key business logic
 
-- **Screenshot verification:** users send a UPI / gift-card screenshot. Gemini Vision returns `{ isValid, amount, date, transactionId, confidence, isGiftCard, notes }`. Auto-accept if `isValid && confidence !== 'low'`; else mark rejected and notify admin with a `/verify_<id>` override command.
+- **Screenshot verification:** users send a UPI / gift-card screenshot. The bot saves it as a pending payment and notifies the admin. Admins verify manually in the dashboard or via `/verify_<paymentId>` in Telegram. No AI vision verification.
 - **Access grant:** single-use Telegram invite links via `ctx.telegram.createChatInviteLink(chatId, { member_limit: 1, name: '<user> - <courseId>' })`. Bot must be admin of the channel/group.
 - **Broadcast rate limiting:** web endpoint sleeps 50ms between sends (~20 msg/sec, under Telegram's ~30/sec cap). Sequential, no concurrency, no 429 retry.
 
@@ -243,8 +236,8 @@ All gated by `isAdmin(ctx.from.id)` against `process.env.ADMIN_TELEGRAM_ID`.
 - **ESM only.** Bot has `"type": "module"`. Both projects use `import`/`export`.
 - **Named exports** for utilities, DB, AI; **default exports** for React components and Next.js pages.
 - **Defensive `try/catch`** on every async DB / network call, returning a safe fallback (null / [] / false) and a `[area] error: ...` log instead of throwing.
-- **`[area]` log prefixes**: `boot`, `start`, `message`, `payment`, `users`, `courses`, `payments`, `Gemini`, `Firebase`, `access`, `admin`, `conversation`.
-- **Lazy singletons:** `getDb()` for Firestore, `getModel()` for Gemini — init on first use.
+- **`[area]` log prefixes**: `boot`, `start`, `message`, `payment`, `users`, `courses`, `payments`, `claude`, `Firebase`, `access`, `admin`, `conversation`.
+- **Lazy singletons:** `getDb()` for Firestore, `getClient()` for Anthropic — init on first use.
 - **Admin API routes** always start with `const session = await getServerSession(authOptions); if (!session) return 401;`. Don't add a route without it.
 - **Admin client pages** are `"use client"` + vanilla `fetch`. No SWR, no React Query.
 - **Admin dark theme palette:** `bg-[#0f172a]` (page), `bg-[#1e293b]` (card), `border-slate-700`, `text-slate-100/300/400`, accent `#3b82f6`. Hex literals, not Tailwind named colors.
@@ -273,13 +266,13 @@ All gated by `isAdmin(ctx.from.id)` against `process.env.ADMIN_TELEGRAM_ID`.
 
 ## Known limitations
 
-- **Conversation history is in-memory.** Ring buffer of 20 in `flows/conversation.js:10`; only the last 10 reach the model (slicing inside each provider's `chat()`). Lost on every bot restart.
+- **Conversation history is in-memory.** Ring buffer of 20 in `flows/conversation.js:10`; only the last 10 reach the model (sliced inside `claude.js chat()`). Lost on every bot restart.
 - **Admin "Verify & Grant Access" does NOT grant access.** The PATCH only sets `status:'verified'`; `console.log("TODO: trigger bot access grant for payment ${paymentId}")`. User's `isPaid` and `stage` remain unchanged unless the bot's automatic path fires.
 - **Naive revenue calculation** on the dashboard: `paidUsers × avg(coursePrice)`, not the actual sum of `paidCourseIds × price`.
 - **Soft-delete inconsistency:** `/api/courses DELETE` flips `active:false`, but `db/courses.js → getAllCourses()` returns all rows. "Deleted" courses still appear in the bot's `interested` stage catalog.
 - **Bot token leaked in screenshot URLs.** `payments.screenshotUrl` embeds the bot token; visible to anyone with Firestore read or admin panel access.
 - **Plain-text admin password.** `ADMIN_PASSWORD` compared with `===`. No hashing, no per-user accounts, no lockout.
-- **No rate limiting** on user-facing bot messages. A spammy user racks up Gemini cost.
+- **No rate limiting** on user-facing bot messages. A spammy user racks up Anthropic API cost.
 - **Single bot, single admin** by design.
 
 ## Future improvements
