@@ -4,7 +4,21 @@
       "PowerShell(node --env-file=.env -e \"import\\('./src/db/courses.js'\\).then\\(async \\(m\\) => { await m.seedCoursesFromConfig\\(\\); process.exit\\(0\\); }\\).catch\\(e => { console.error\\('ERR:', e.message\\); process.exit\\(1\\); }\\);\")",
       "PowerShell($env:USE_TEST_COURSES = \"true\"; node --env-file=.env -e \"import\\('./src/db/courses.js'\\).then\\(async \\(m\\) => { const cfg = await import\\('../upsc-bot/config/courses.test.config.js'\\); console.log\\('Test config has', cfg.default.length, 'courses with prices:', cfg.default.map\\(c => '₹' + c.price\\).join\\(', '\\)\\); process.exit\\(0\\); }\\).catch\\(e => { console.error\\('ERR:', e.message\\); process.exit\\(1\\); }\\);\")",
       "PowerShell($html = Invoke-WebRequest -Uri \"http://127.0.0.1:3000/sim\" -UseBasicParsing; \"GET /sim status: $\\($html.StatusCode\\)\"; \"HTML length: $\\($html.Content.Length\\) chars\"; \"Has 'Priya' title: $\\($html.Content -match 'Priya'\\)\")",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(npm install *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(timeout 10 grep -rn \"updatePaymentStatus\" upsc-bot/src upsc-admin)",
+      "Bash(node --check upsc-bot/src/db/payments.js)",
+      "Bash(node --check upsc-bot/src/handlers/admin.js)",
+      "Bash(node --check src/flows/payment.js)",
+      "Bash(node --check upsc-bot/src/flows/payment.js)",
+      "Bash(node --check src/ai/prompts.js)",
+      "Bash(node --check upsc-bot/src/ai/prompts.js)",
+      "Bash(node --check upsc-bot/src/ai/constants.js)",
+      "Bash(node *)",
+      "Bash(npm run *)"
     ]
   }
 }
