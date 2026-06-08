@@ -249,6 +249,14 @@ try {
   } else {
     fail('replaceMarkers unknown', `Should have left marker intact, got: "${reply2}"`);
   }
+
+  // Marker replacement — uppercase marker matches lowercase template key
+  const reply3 = replaceMarkers('Say {{TEMPLATE:Gift_Card_Notice}}', { gift_card_notice: 'OK' });
+  if (reply3 === 'Say OK') {
+    pass('replaceMarkers — case-insensitive key match');
+  } else {
+    fail('replaceMarkers case-insensitive', `Should normalize to lowercase, got: "${reply3}"`);
+  }
 } catch (err) {
   fail('Templates', err.message);
 }

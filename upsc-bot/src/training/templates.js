@@ -15,8 +15,11 @@ export function substitute(body, vars = {}) {
 
 /**
  * Replace {{TEMPLATE:<key>}} markers in a Claude reply with the verbatim
- * template body from templates.json. Unknown keys are left intact so the
- * operator can spot the misfire in the live chat.
+ * template body from templates.json. The marker key is normalized to
+ * lowercase before lookup, so {{TEMPLATE:Gift_Card_Notice}} resolves the
+ * same as {{TEMPLATE:gift_card_notice}}. Keys MUST be stored lowercase
+ * in templates.json. Unknown keys are left intact so the operator can
+ * spot the misfire in the live chat.
  *
  * @param {string} reply
  * @param {Record<string,string>} templates
@@ -25,8 +28,9 @@ export function substitute(body, vars = {}) {
 export function replaceMarkers(reply, templates = {}) {
   if (!reply) return '';
   return reply.replace(/\{\{TEMPLATE:([a-z0-9_]+)\}\}/gi, (match, key) => {
-    if (Object.prototype.hasOwnProperty.call(templates, key)) {
-      return templates[key];
+    const lookupKey = key.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(templates, lookupKey)) {
+      return templates[lookupKey];
     }
     console.warn(`[training] unknown template marker: ${key}`);
     return match;
