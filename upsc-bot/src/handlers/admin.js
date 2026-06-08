@@ -1,6 +1,7 @@
 import { isAdmin } from '../utils/helpers.js';
 import { getAllUsers, getUser, updateStage, updateUser } from '../db/users.js';
 import { updatePaymentStatus } from '../db/payments.js';
+import { seedCoursesFromConfig } from '../db/courses.js';
 
 /**
  * Register admin-only command handlers.
@@ -118,6 +119,23 @@ export function registerAdminHandler(bot) {
       { parse_mode: 'Markdown' },
     );
     console.log(`[admin] /addcourse requested`);
+  });
+
+  // ── /reload_courses ───────────────────────────────────────────────
+  bot.command('reload_courses', async (ctx) => {
+    if (!isAdmin(ctx.from.id)) {
+      return ctx.reply('🚫 Admin-only command.');
+    }
+
+    try {
+      await ctx.reply('🔄 Reloading courses from config...');
+      const { inserted, updated } = await seedCoursesFromConfig();
+      await ctx.reply(`✅ Done — ${inserted} new, ${updated} updated.`);
+      console.log(`[admin] /reload_courses — ${inserted} new, ${updated} updated`);
+    } catch (err) {
+      console.error('[admin] /reload_courses error:', err.message);
+      await ctx.reply('Reload failed.');
+    }
   });
 
   // ── /listpaid ─────────────────────────────────────────────────────
