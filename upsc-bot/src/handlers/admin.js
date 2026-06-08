@@ -11,6 +11,7 @@ import { seedCoursesFromConfig } from '../db/courses.js';
  *   /stats     → total users, paid users, today's new users
  *   /broadcast → send a message to all users
  *   /addcourse → instructions to add a course
+ *   /reload_courses → re-run the course seeder (upsert) without restarting the bot
  *   /listpaid  → list all paid users with their course
  *   /verify_<paymentId> → verify a payment and grant access
  *
