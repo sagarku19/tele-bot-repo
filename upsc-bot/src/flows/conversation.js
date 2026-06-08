@@ -2,6 +2,10 @@ import { chat } from '../ai/claude.js';
 import { buildConversationPrompt } from '../ai/prompts.js';
 import { getAllCourses } from '../db/courses.js';
 import { formatPrice } from '../utils/helpers.js';
+import { loadExamples, loadTemplates, loadFaq } from '../training/loader.js';
+import { pickExamples } from '../training/examples.js';
+import { replaceMarkers } from '../training/templates.js';
+import { matchFaq } from '../training/faq.js';
 
 /**
  * In-memory conversation history per user.
@@ -50,31 +54,44 @@ export async function processMessage(user, messageText) {
 
   console.log(`[conversation] User ${userId} | stage: ${stage} | msg: "${text.substring(0, 50)}"`);
 
+  // ── FAQ short-circuit ──────────────────────────────────────────
+  try {
+    const faq = await loadFaq();
+    const faqReply = matchFaq(text, faq);
+    if (faqReply) {
+      console.log(`[conversation] FAQ hit for user ${userId}`);
+      return { reply: faqReply, newStage: null, selectedCourseId: null };
+    }
+  } catch (err) {
+    console.error('[conversation] FAQ check failed (continuing):', err.message);
+  }
+
   try {
     const history = getHistory(userId);
+    const [examplesPool, templates] = await Promise.all([loadExamples(), loadTemplates()]);
+    const examples = pickExamples(examplesPool, stage, 3);
+    const swap = (reply) => replaceMarkers(reply, templates);
 
     // ── Stage: NEW ─────────────────────────────────────────────────
     if (stage === 'new') {
-      const systemPrompt = buildConversationPrompt('new', user, text);
-      const reply = await chat(systemPrompt, history, text);
+      const systemPrompt = buildConversationPrompt('new', user, text, { examples, templates });
+      const reply = swap(await chat(systemPrompt, history, text));
 
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
 
-      // Transition to "engaged" if message looks like a name / intro
       const looksLikeName = text.length >= 2 && !text.startsWith('/');
       return { reply, newStage: looksLikeName ? 'engaged' : null, selectedCourseId: null };
     }
 
     // ── Stage: ENGAGED ─────────────────────────────────────────────
     if (stage === 'engaged') {
-      const systemPrompt = buildConversationPrompt('engaged', user, text);
-      const reply = await chat(systemPrompt, history, text);
+      const systemPrompt = buildConversationPrompt('engaged', user, text, { examples, templates });
+      const reply = swap(await chat(systemPrompt, history, text));
 
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
 
-      // Transition to "interested" on course-related keywords
       const interestKeywords = [
         'course', 'courses', 'price', 'pricing', 'fees', 'fee',
         'enroll', 'enrol', 'join', 'admission', 'subscribe',
@@ -82,6 +99,8 @@ export async function processMessage(user, messageText) {
         'batao', 'details', 'kya milega', 'syllabus',
         'haan', 'yes', 'sure', 'interested', 'bataiye',
         'dikha', 'dikhao', 'course batao', 'kya hai',
+        'combo', 'optional', 'discount', 'old member',
+        'gpay', 'phonepe', 'paytm', 'amazon pay',
       ];
       const lowerText = text.toLowerCase();
       const showsInterest = interestKeywords.some((kw) => lowerText.includes(kw));
@@ -91,10 +110,8 @@ export async function processMessage(user, messageText) {
 
     // ── Stage: INTERESTED ──────────────────────────────────────────
     if (stage === 'interested') {
-      // Build formatted course catalog for the prompt
       const courses = await getAllCourses();
       let courseCatalog = 'Abhi koi course available nahi hai.';
-
       if (courses.length > 0) {
         courseCatalog = courses
           .map(
@@ -106,45 +123,43 @@ export async function processMessage(user, messageText) {
           .join('\n\n');
       }
 
-      const systemPrompt = buildConversationPrompt('interested', user, text, courseCatalog);
-      const reply = await chat(systemPrompt, history, text);
+      const systemPrompt = buildConversationPrompt('interested', user, text, { courseCatalog, examples, templates });
+      const rawReply = await chat(systemPrompt, history, text);
 
       pushHistory(userId, 'user', text);
 
-      // Check if Gemini indicated a course selection
-      const courseMatch = reply.match(/\[SELECTED_COURSE:(.+?)\]/);
+      const courseMatch = rawReply.match(/\[SELECTED_COURSE:(.+?)\]/);
       let selectedCourseId = null;
       let newStage = null;
-      let cleanReply = reply;
+      let cleanReply = rawReply;
 
       if (courseMatch) {
         selectedCourseId = courseMatch[1].trim();
         newStage = 'payment_pending';
-        cleanReply = reply.replace(/\[SELECTED_COURSE:.+?\]/g, '').trim();
+        cleanReply = rawReply.replace(/\[SELECTED_COURSE:.+?\]/g, '').trim();
         console.log(`[conversation] Course selected: ${selectedCourseId}`);
       }
 
-      pushHistory(userId, 'model', cleanReply);
-
-      return { reply: cleanReply, newStage, selectedCourseId };
+      const finalReply = swap(cleanReply);
+      pushHistory(userId, 'model', finalReply);
+      return { reply: finalReply, newStage, selectedCourseId };
     }
 
     // ── Stage: PAYMENT_PENDING ─────────────────────────────────────
     if (stage === 'payment_pending') {
-      const systemPrompt = buildConversationPrompt('payment_pending', user, text);
-      const reply = await chat(systemPrompt, history, text);
+      const systemPrompt = buildConversationPrompt('payment_pending', user, text, { examples, templates });
+      const reply = swap(await chat(systemPrompt, history, text));
 
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
 
-      // No text-based stage transition — only photo handler moves to "paid"
       return { reply, newStage: null, selectedCourseId: null };
     }
 
     // ── Stage: PAID ────────────────────────────────────────────────
     if (stage === 'paid') {
-      const systemPrompt = buildConversationPrompt('paid', user, text);
-      const reply = await chat(systemPrompt, history, text);
+      const systemPrompt = buildConversationPrompt('paid', user, text, { examples, templates });
+      const reply = swap(await chat(systemPrompt, history, text));
 
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
@@ -154,8 +169,8 @@ export async function processMessage(user, messageText) {
 
     // ── Fallback ───────────────────────────────────────────────────
     console.warn(`[conversation] Unknown stage "${stage}" for user ${userId}`);
-    const systemPrompt = buildConversationPrompt('engaged', user, text);
-    const reply = await chat(systemPrompt, history, text);
+    const systemPrompt = buildConversationPrompt('engaged', user, text, { examples, templates });
+    const reply = swap(await chat(systemPrompt, history, text));
     pushHistory(userId, 'user', text);
     pushHistory(userId, 'model', reply);
     return { reply, newStage: 'engaged', selectedCourseId: null };
