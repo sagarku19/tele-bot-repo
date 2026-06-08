@@ -187,6 +187,38 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 6: Training loader
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n🎓 Test 6: Training Loader');
+try {
+  const { loadExamples, loadTemplates, loadFaq } = await import('./training/loader.js');
+
+  const examples = await loadExamples();
+  const templates = await loadTemplates();
+  const faq = await loadFaq();
+
+  if (!Array.isArray(examples)) {
+    fail('loadExamples', `Expected array, got ${typeof examples}`);
+  } else {
+    pass(`loadExamples — returned ${examples.length}-item array`);
+  }
+
+  if (typeof templates !== 'object' || templates === null || Array.isArray(templates)) {
+    fail('loadTemplates', `Expected plain object, got ${typeof templates}`);
+  } else {
+    pass(`loadTemplates — returned object with ${Object.keys(templates).length} keys`);
+  }
+
+  if (typeof faq !== 'object' || faq === null || Array.isArray(faq)) {
+    fail('loadFaq', `Expected plain object, got ${typeof faq}`);
+  } else {
+    pass(`loadFaq — returned object with ${Object.keys(faq).length} keys`);
+  }
+} catch (err) {
+  fail('Training loader', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
