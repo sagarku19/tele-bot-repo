@@ -15,11 +15,12 @@ function normalize(s) {
 
 /**
  * Look for a confident FAQ hit in the user's message.
- * Returns the canned reply, or null if no key is found as a substring.
+ * Returns `{ key, reply }` on hit (so the caller can log which key matched),
+ * or `null` if no key is found as a substring.
  *
  * @param {string} userMessage
  * @param {Record<string,string>} faq
- * @returns {string|null}
+ * @returns {{key: string, reply: string}|null}
  */
 export function matchFaq(userMessage, faq) {
   if (!userMessage || !faq) return null;
@@ -29,7 +30,7 @@ export function matchFaq(userMessage, faq) {
   for (const [key, reply] of Object.entries(faq)) {
     const needle = normalize(key);
     if (needle && haystack.includes(needle)) {
-      return reply;
+      return { key, reply };
     }
   }
   return null;

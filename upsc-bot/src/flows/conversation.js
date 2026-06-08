@@ -54,16 +54,18 @@ export async function processMessage(user, messageText) {
 
   console.log(`[conversation] User ${userId} | stage: ${stage} | msg: "${text.substring(0, 50)}"`);
 
-  // ── FAQ short-circuit ──────────────────────────────────────────
-  try {
-    const faq = await loadFaq();
-    const faqReply = matchFaq(text, faq);
-    if (faqReply) {
-      console.log(`[conversation] FAQ hit for user ${userId}`);
-      return { reply: faqReply, newStage: null, selectedCourseId: null };
+  // ── FAQ short-circuit (skip for paid — they get the full tutor) ─
+  if (stage !== 'paid') {
+    try {
+      const faq = await loadFaq();
+      const hit = matchFaq(text, faq);
+      if (hit) {
+        console.log(`[conversation] FAQ hit | user=${userId} key="${hit.key}" msg="${text.substring(0, 50)}"`);
+        return { reply: hit.reply, newStage: null, selectedCourseId: null };
+      }
+    } catch (err) {
+      console.error('[conversation] FAQ check failed (continuing):', err.message);
     }
-  } catch (err) {
-    console.error('[conversation] FAQ check failed (continuing):', err.message);
   }
 
   try {

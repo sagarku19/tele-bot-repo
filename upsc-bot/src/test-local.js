@@ -276,7 +276,7 @@ try {
 
   // Exact match
   const r1 = matchFaq('lifetime access?', faq);
-  if (r1 === faq['lifetime access']) {
+  if (r1 && r1.key === 'lifetime access' && r1.reply === faq['lifetime access']) {
     pass('matchFaq — exact match with trailing punctuation');
   } else {
     fail('matchFaq exact', `Got: ${JSON.stringify(r1)}`);
@@ -284,7 +284,7 @@ try {
 
   // Substring match (key appears inside user message)
   const r2 = matchFaq('bhai gpay chalega ya nahi', faq);
-  if (r2 === faq['gpay chalega']) {
+  if (r2 && r2.key === 'gpay chalega' && r2.reply === faq['gpay chalega']) {
     pass('matchFaq — substring match');
   } else {
     fail('matchFaq substring', `Got: ${JSON.stringify(r2)}`);
