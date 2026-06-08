@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getCourse } from '../db/courses.js';
 import { savePayment } from '../db/payments.js';
 import { formatPrice } from '../utils/helpers.js';
+import { appendMessage } from '../db/messages.js';
 
 /**
  * Hinglish reply sent to the user immediately after a screenshot is
@@ -38,7 +39,14 @@ export async function processPaymentScreenshot(ctx, user, courseId) {
     }
 
     if (!fileId) {
-      await ctx.reply('Arre yaar, file nahi mila 😕 Dobara photo bhej na! 📸');
+      const noFileReply = 'Arre yaar, file nahi mila 😕 Dobara photo bhej na! 📸';
+      await ctx.reply(noFileReply);
+      await appendMessage(userId, {
+        role: 'bot',
+        text: noFileReply,
+        stage: 'payment_pending',
+        source: 'system',
+      });
       return;
     }
 
@@ -61,12 +69,25 @@ export async function processPaymentScreenshot(ctx, user, courseId) {
     });
 
     if (!paymentId) {
-      await ctx.reply('Arre sorry, payment save nahi ho paya 😥 Ek baar phir try kar!');
+      const saveFailedReply = 'Arre sorry, payment save nahi ho paya 😥 Ek baar phir try kar!';
+      await ctx.reply(saveFailedReply);
+      await appendMessage(userId, {
+        role: 'bot',
+        text: saveFailedReply,
+        stage: 'payment_pending',
+        source: 'system',
+      });
       return;
     }
 
     // ── 5. Tell the user we're reviewing ───────────────────────────
     await ctx.reply(WAIT_FOR_VERIFICATION_REPLY);
+    await appendMessage(userId, {
+      role: 'bot',
+      text: WAIT_FOR_VERIFICATION_REPLY,
+      stage: 'payment_pending',
+      source: 'system',
+    });
     console.log(`[payment] Saved payment ${paymentId} as pending for user ${userId}, course ${courseId}`);
 
     // ── 6. Notify admin so they can review in the dashboard ────────
@@ -95,9 +116,15 @@ export async function processPaymentScreenshot(ctx, user, courseId) {
     }
   } catch (err) {
     console.error(`[payment] processPaymentScreenshot error for user ${userId}:`, err.message);
-    await ctx.reply(
+    const errorReply =
       'Arre sorry yaar, screenshot process mein kuch gadbad ho gayi 😅\n' +
-      'Ek baar phir se try kar — ya admin se contact kar! 🙏',
-    );
+      'Ek baar phir se try kar — ya admin se contact kar! 🙏';
+    await ctx.reply(errorReply);
+    await appendMessage(userId, {
+      role: 'bot',
+      text: errorReply,
+      stage: 'payment_pending',
+      source: 'system',
+    });
   }
 }
