@@ -310,6 +310,47 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 9: Examples — stage-filtered + recency-sorted selection
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n🧪 Test 9: Few-shot examples');
+try {
+  const { pickExamples } = await import('./training/examples.js');
+
+  const pool = [
+    { stage: 'interested', user: 'price?',      reply: 'Old reply', addedAt: '2025-01-01' },
+    { stage: 'interested', user: 'kitna?',      reply: 'New reply', addedAt: '2026-06-01' },
+    { stage: 'paid',       user: 'doubt hai',   reply: 'Sure',      addedAt: '2026-06-05' },
+    { stage: 'interested', user: 'combo?',      reply: '1499',      addedAt: '2026-06-08' },
+  ];
+
+  // Stage filter
+  const r1 = pickExamples(pool, 'paid', 3);
+  if (r1.length === 1 && r1[0].user === 'doubt hai') {
+    pass('pickExamples — stage filter');
+  } else {
+    fail('pickExamples stage', `Got ${r1.length} items: ${JSON.stringify(r1)}`);
+  }
+
+  // Recency-sorted, limit applied
+  const r2 = pickExamples(pool, 'interested', 2);
+  if (r2.length === 2 && r2[0].user === 'combo?' && r2[1].user === 'kitna?') {
+    pass('pickExamples — recency sort + limit');
+  } else {
+    fail('pickExamples sort', `Got: ${JSON.stringify(r2.map((e) => e.user))}`);
+  }
+
+  // Empty pool returns []
+  const r3 = pickExamples([], 'interested', 3);
+  if (Array.isArray(r3) && r3.length === 0) {
+    pass('pickExamples — empty pool returns []');
+  } else {
+    fail('pickExamples empty', `Got: ${JSON.stringify(r3)}`);
+  }
+} catch (err) {
+  fail('Examples', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
