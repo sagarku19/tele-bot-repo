@@ -4,7 +4,7 @@ import { getUser, createUser, updateUser, updateStage } from '../db/users.js';
  * Register the /start command handler.
  * - Creates or fetches the user in Firestore
  * - Sets stage to "new"
- * - Sends a warm Hinglish welcome asking for name & attempt year
+ * - Sends a short Hi greeting in the operator register
  *
  * @param {import('telegraf').Telegraf} bot
  */
@@ -32,22 +32,12 @@ export function registerStartHandler(bot) {
         console.log(`[start] Existing user reset to "new": ${id}`);
       }
 
-      const welcomeText = [
-        `🙏 Namaste ${first_name}! Welcome to UPSC Bot! 🎯`,
-        ``,
-        `Main hoon aapka AI study buddy — UPSC preparation mein aapki puri help karunga! 💪`,
-        ``,
-        `Sabse pehle mujhe batao:`,
-        `👤 Aapka naam kya hai?`,
-        `📅 Aur UPSC ka konsa attempt hai — first time ya pehle bhi try kiya hai?`,
-        ``,
-        `Bas yeh do cheezein batao, phir hum shuru karte hain! 🚀`,
-      ].join('\n');
+      const welcomeText = 'Hi 👋';
 
       await ctx.reply(welcomeText);
     } catch (err) {
       console.error('[start] Error:', err.message);
-      await ctx.reply('Oops! Kuch problem aa gayi. Please /start dobara try karein 🙏');
+      await ctx.reply('Arre kuch issue aa gaya bhai. /start phir try kar 🙏');
     }
   });
 }
