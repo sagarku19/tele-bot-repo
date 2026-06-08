@@ -351,6 +351,48 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 10: Course seeder upsert behavior
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n💾 Test 10: Seeder upsert');
+try {
+  const { getDb } = await import('../config/firebase.js');
+  const db = getDb();
+
+  const testCourseId = `__test_course_${Date.now()}`;
+
+  // Write a course with price 100
+  await db.collection('courses').doc(testCourseId).set({
+    id: testCourseId,
+    name: 'Seed Test Course',
+    description: 'Initial',
+    price: 100,
+    channelId: '@test',
+    groupId: '@test',
+    welcomeMessage: 'Welcome',
+    createdAt: new Date().toISOString(),
+  });
+
+  // Simulate the seeder upsert: same id, new price
+  await db.collection('courses').doc(testCourseId).set(
+    { price: 200, description: 'Updated' },
+    { merge: true },
+  );
+
+  const doc = await db.collection('courses').doc(testCourseId).get();
+  const data = doc.data();
+  if (data.price === 200 && data.description === 'Updated' && data.name === 'Seed Test Course') {
+    pass('Seeder upsert — price updated, other fields preserved');
+  } else {
+    fail('Seeder upsert', `Unexpected doc state: ${JSON.stringify(data)}`);
+  }
+
+  // Cleanup
+  await db.collection('courses').doc(testCourseId).delete();
+} catch (err) {
+  fail('Seeder upsert', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));

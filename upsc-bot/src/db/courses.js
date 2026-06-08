@@ -49,33 +49,39 @@ export async function getAllCourses() {
 
 /**
  * Seed courses from courses.config.js into Firestore.
- * Only writes a document if it does not already exist (idempotent).
- * @returns {Promise<number>} Number of newly seeded courses.
+ * Upserts each course with merge:true so price/description edits land
+ * on every boot (not just on first seed).
+ * @returns {Promise<{inserted: number, updated: number}>}
  */
 export async function seedCoursesFromConfig() {
   try {
     const db = getDb();
     const coursesConfig = await loadCoursesConfig();
-    let seeded = 0;
+    let inserted = 0;
+    let updated = 0;
 
     for (const course of coursesConfig) {
       const ref = db.collection(COLLECTION).doc(course.id);
-      const doc = await ref.get();
+      const existing = await ref.get();
 
-      if (!doc.exists) {
+      if (existing.exists) {
+        await ref.set(course, { merge: true });
+        updated++;
+        console.log(`[courses] Updated course: ${course.id}`);
+      } else {
         await ref.set({
           ...course,
           createdAt: new Date().toISOString(),
         });
-        seeded++;
-        console.log(`[courses] Seeded course: ${course.id}`);
+        inserted++;
+        console.log(`[courses] Inserted course: ${course.id}`);
       }
     }
 
-    console.log(`[courses] Seeding complete — ${seeded} new, ${coursesConfig.length - seeded} already existed`);
-    return seeded;
+    console.log(`[courses] Seeding complete — ${inserted} new, ${updated} updated`);
+    return { inserted, updated };
   } catch (err) {
     console.error('[courses] seedCoursesFromConfig failed:', err.message);
-    return 0;
+    return { inserted: 0, updated: 0 };
   }
 }
