@@ -393,6 +393,60 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 11: Messages subcollection CRUD
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n💬 Test 11: Messages CRUD');
+try {
+  const { getDb } = await import('../config/firebase.js');
+  const { appendMessage, getMessages } = await import('./db/messages.js');
+  const db = getDb();
+
+  const testUserId = `__test_msg_user_${Date.now()}`;
+  await db.collection('users').doc(testUserId).set({
+    telegramId: Number(testUserId.slice(-12)) || 999999,
+    name: 'Test',
+    stage: 'new',
+    createdAt: new Date().toISOString(),
+  });
+
+  // Append a user message
+  const ok1 = await appendMessage(testUserId, {
+    role: 'user',
+    text: 'Hello',
+    stage: 'new',
+    source: 'user',
+  });
+  if (ok1) pass('appendMessage user — returned true');
+  else fail('appendMessage user', 'returned false');
+
+  // Append a bot message with meta
+  const ok2 = await appendMessage(testUserId, {
+    role: 'bot',
+    text: 'Hi',
+    stage: 'new',
+    source: 'claude',
+    model: 'claude-haiku-4-5',
+  });
+  if (ok2) pass('appendMessage bot — returned true');
+  else fail('appendMessage bot', 'returned false');
+
+  // Read them back (newest-first ordering)
+  const msgs = await getMessages(testUserId, { limit: 10 });
+  if (Array.isArray(msgs) && msgs.length === 2 && msgs[0].role === 'bot' && msgs[1].role === 'user') {
+    pass('getMessages — returned 2 msgs, newest-first');
+  } else {
+    fail('getMessages', `Got ${msgs?.length} msgs: ${JSON.stringify(msgs?.map(m => m.role))}`);
+  }
+
+  // Cleanup — delete subcollection docs, then user doc
+  const sub = await db.collection('users').doc(testUserId).collection('messages').get();
+  for (const d of sub.docs) await d.ref.delete();
+  await db.collection('users').doc(testUserId).delete();
+} catch (err) {
+  fail('Messages CRUD', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
