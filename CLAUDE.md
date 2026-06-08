@@ -264,6 +264,36 @@ All gated by `isAdmin(ctx.from.id)` against `process.env.ADMIN_TELEGRAM_ID`.
 2. Restart the bot — `seedCoursesFromConfig()` writes new courses idempotently.
 3. Alternative: add via `/courses` in the admin panel — but admin-created courses lack the `id` field (auto-Firestore-ID), and the bot still reads them by doc ID, so functionally OK.
 
+## Training substrate (added 2026-06-08)
+
+The bot learns operator chat style from real transcripts via the `/train` slash command. All training artifacts live in `upsc-bot/training/`:
+
+| File | Purpose |
+|---|---|
+| `transcripts/*.txt` | Append-only redacted chat corpus. `.processed` lists ingested filenames. |
+| `examples.json` | Few-shot pool. `{stage, user, reply, addedAt, tags}` array. Top 3 by recency injected per turn via `pickExamples`. |
+| `templates.json` | Canned scripts keyed by intent (`gift_card_notice`, `payment_mode_menu`, `payment_link_phonepe`, …). `{{var}}` placeholders allowed. |
+| `faq.json` | `"normalized question"` → `"canned reply"` map. Short-circuits Claude when matched. |
+
+### Runtime flow with training data
+
+1. `flows/conversation.js → processMessage` first calls `matchFaq(text, faq)`. If hit, reply is returned directly — no Claude call.
+2. Otherwise, `pickExamples(pool, stage, 3)` selects the top 3 stage-matched examples, sorted by `addedAt` desc.
+3. `buildConversationPrompt(stage, user, text, { courseCatalog, examples, templates })` injects the examples as a "Past real conversations" few-shot block and lists the available template keys.
+4. The model can emit `{{TEMPLATE:<key>}}` markers; `replaceMarkers(reply, templates)` swaps them for verbatim template bodies before sending. Unknown markers stay intact (visible to operator as a misfire signal).
+
+### `/train` command
+
+`.claude/commands/train.md`. Six-stage pipeline: **ingest → parse/redact → extract (4 buckets: style/courses/templates/faq) → diff against current state (with Firestore collision check) → per-group human approval → apply + single git commit**. Input: paste as `$ARGUMENTS` OR drop new `.txt` files into `training/transcripts/`. Spec: `docs/superpowers/specs/2026-06-08-train-command-design.md`.
+
+### `/reload_courses`
+
+Admin Telegram command (added with /train). Re-runs `seedCoursesFromConfig` in place — picks up `courses.config.js` edits without a full bot restart. Seeder now upserts with `merge: true`.
+
+### Extended course schema
+
+`courses.config.js` items support optional `kind` (`combo` | `lecture` | `optional`), `faculty`, `subject`, `demoLink`, and `pricing: { list, floor, oldMember }` alongside the original required fields. Bot still reads via doc ID. After running `/train`, run `/reload_courses` (or restart) to push catalog changes to Firestore.
+
 ## Known limitations
 
 - **Conversation history is in-memory.** Ring buffer of 20 in `flows/conversation.js:10`; only the last 10 reach the model (sliced inside `claude.js chat()`). Lost on every bot restart.
