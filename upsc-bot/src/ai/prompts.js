@@ -1,12 +1,17 @@
 import { renderExamples } from '../training/examples.js';
 
 /**
- * Stage-based system prompts for the bot.
+ * Stage-based system prompts for the UPSC Bot.
  *
- * Persona: "UPSC Helping Hand" (short: "Helper" 🤞) — a warm, respectful
- * UPSC mentor who speaks Hinglish using "aap" (never "tu"). Replies should
- * feel like a real human chat: short, natural, no formal/robotic tone, and
- * never asks the user for their name.
+ * Persona: "UPSC Helping Hand (Aspirant)" — a UPSC course seller on Telegram
+ * in the operator's actual chat register. Replies are SHORT (often 1-3 words),
+ * sometimes split across 2-3 separate sends. Mixed register OK: bhai / ap /
+ * aap / yaar. No forced "always end with a question" rule — only natural ones.
+ *
+ * The model can emit {{TEMPLATE:<key>}} markers (replaceMarkers swaps them for
+ * the verbatim template body from training/templates.json) and the
+ * [SELECTED_COURSE:<id>] tag in the "interested" stage to trigger the
+ * payment_pending transition.
  *
  * Stages: new → engaged → interested → payment_pending → paid
  */
