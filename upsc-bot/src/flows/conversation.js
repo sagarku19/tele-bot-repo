@@ -57,11 +57,11 @@ export async function processMessage(user, messageText) {
   // ── FAQ short-circuit (skip for paid — they get the full tutor) ─
   if (stage !== 'paid') {
     try {
-      const faq = await loadFaq();
+      const [faq, templates] = await Promise.all([loadFaq(), loadTemplates()]);
       const hit = matchFaq(text, faq);
       if (hit) {
         console.log(`[conversation] FAQ hit | user=${userId} key="${hit.key}" msg="${text.substring(0, 50)}"`);
-        return { reply: hit.reply, newStage: null, selectedCourseId: null };
+        return { reply: replaceMarkers(hit.reply, templates), newStage: null, selectedCourseId: null };
       }
     } catch (err) {
       console.error('[conversation] FAQ check failed (continuing):', err.message);

@@ -304,6 +304,7 @@ Admin Telegram command (added with /train). Re-runs `seedCoursesFromConfig` in p
 - **Plain-text admin password.** `ADMIN_PASSWORD` compared with `===`. No hashing, no per-user accounts, no lockout.
 - **No rate limiting** on user-facing bot messages. A spammy user racks up Anthropic API cost.
 - **Single bot, single admin** by design.
+- **Inner template placeholders are not substituted at runtime.** `templates.json` bodies contain `{{link}}`, `{{list1_link}}`, `{{list2_link}}` placeholders for live payment URLs. The bot's runtime calls `replaceMarkers` (swaps `{{TEMPLATE:<key>}}`) but NOT `substitute` (would expand `{{link}}` etc.). So combo pitches and payment links currently send literal `{{link}}` text to users. Until a `payment-links.json` + `substitute` call chain is wired in, the operator must avoid sending these templates verbatim or manually fill the placeholders in `templates.json`.
 
 ## Future improvements
 - Persist conversation history to Firestore (or Redis) so it survives restart.
