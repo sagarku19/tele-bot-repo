@@ -1,10 +1,12 @@
 import { chat } from '../ai/claude.js';
 import { buildConversationPrompt } from '../ai/prompts.js';
 import { getAllCourses } from '../db/courses.js';
+import { getAllLinks } from '../db/links.js';
 import { formatPrice } from '../utils/helpers.js';
 import { loadExamples, loadTemplates, loadFaq } from '../training/loader.js';
 import { pickExamples } from '../training/examples.js';
-import { replaceMarkers } from '../training/templates.js';
+import { replaceMarkers, expandLinks } from '../training/templates.js';
+import { stripEmphasis } from '../training/sanitize.js';
 import { matchFaq } from '../training/faq.js';
 
 /**
@@ -57,12 +59,13 @@ export async function processMessage(user, messageText) {
   // ── FAQ short-circuit (skip for paid — they get the full tutor) ─
   if (stage !== 'paid') {
     try {
-      const [faq, templates] = await Promise.all([loadFaq(), loadTemplates()]);
+      const [faq, templates, links] = await Promise.all([loadFaq(), loadTemplates(), getAllLinks()]);
       const hit = matchFaq(text, faq);
       if (hit) {
         console.log(`[conversation] FAQ hit | user=${userId} key="${hit.key}" msg="${text.substring(0, 50)}"`);
+        const expanded = stripEmphasis(expandLinks(replaceMarkers(hit.reply, templates), links));
         return {
-          reply: replaceMarkers(hit.reply, templates),
+          reply: expanded,
           newStage: null,
           selectedCourseId: null,
           meta: { source: 'faq', faqKey: hit.key },
@@ -75,9 +78,13 @@ export async function processMessage(user, messageText) {
 
   try {
     const history = getHistory(userId);
-    const [examplesPool, templates] = await Promise.all([loadExamples(), loadTemplates()]);
+    const [examplesPool, templates, links] = await Promise.all([
+      loadExamples(),
+      loadTemplates(),
+      getAllLinks(),
+    ]);
     const examples = pickExamples(examplesPool, stage, 3);
-    const swap = (reply) => replaceMarkers(reply, templates);
+    const swap = (reply) => stripEmphasis(expandLinks(replaceMarkers(reply, templates), links));
 
     // ── Stage: NEW ─────────────────────────────────────────────────
     if (stage === 'new') {
