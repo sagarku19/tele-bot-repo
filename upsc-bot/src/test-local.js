@@ -262,6 +262,54 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 8: FAQ short-circuit matcher
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n❓ Test 8: FAQ Matcher');
+try {
+  const { matchFaq } = await import('./training/faq.js');
+
+  const faq = {
+    'lifetime access': 'Haan lifetime. Update 1 year ka hai',
+    'gpay chalega': 'Haan bhai, G Pay chalega',
+    'demo class': 'Demo link bhej deta hoon',
+  };
+
+  // Exact match
+  const r1 = matchFaq('lifetime access?', faq);
+  if (r1 === faq['lifetime access']) {
+    pass('matchFaq — exact match with trailing punctuation');
+  } else {
+    fail('matchFaq exact', `Got: ${JSON.stringify(r1)}`);
+  }
+
+  // Substring match (key appears inside user message)
+  const r2 = matchFaq('bhai gpay chalega ya nahi', faq);
+  if (r2 === faq['gpay chalega']) {
+    pass('matchFaq — substring match');
+  } else {
+    fail('matchFaq substring', `Got: ${JSON.stringify(r2)}`);
+  }
+
+  // No match → null
+  const r3 = matchFaq('kya haal hai', faq);
+  if (r3 === null) {
+    pass('matchFaq — no match returns null');
+  } else {
+    fail('matchFaq null', `Should be null, got: ${JSON.stringify(r3)}`);
+  }
+
+  // Empty FAQ → null
+  const r4 = matchFaq('anything', {});
+  if (r4 === null) {
+    pass('matchFaq — empty FAQ returns null');
+  } else {
+    fail('matchFaq empty', `Should be null, got: ${JSON.stringify(r4)}`);
+  }
+} catch (err) {
+  fail('FAQ matcher', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
