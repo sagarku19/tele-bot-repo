@@ -1,3 +1,5 @@
+import { renderExamples } from '../training/examples.js';
+
 /**
  * Stage-based system prompts for the bot.
  *
@@ -110,21 +112,31 @@ STRICT RULES:
 
 /**
  * Build the full prompt for a conversation turn.
- * Injects user context and the student's message into the stage prompt.
  *
  * @param {string} stage - Current user stage
  * @param {object} user - User document from Firestore
  * @param {string} messageText - The student's message
- * @param {string} [courseCatalog] - Formatted course list (for "interested" stage)
+ * @param {object} [opts]
+ * @param {string} [opts.courseCatalog] - Formatted course list (for "interested" stage)
+ * @param {Array} [opts.examples] - Few-shot examples picked for this stage
+ * @param {Record<string,string>} [opts.templates] - Available templates by key (for marker hint)
  * @returns {string}
  */
-export function buildConversationPrompt(stage, user, messageText, courseCatalog = '') {
+export function buildConversationPrompt(stage, user, messageText, opts = {}) {
+  const { courseCatalog = '', examples = [], templates = {} } = opts;
+
   let systemPrompt = STAGE_PROMPTS[stage] || STAGE_PROMPTS.engaged;
 
-  // Inject course catalog for the "interested" stage
   if (stage === 'interested' && courseCatalog) {
     systemPrompt = systemPrompt.replace('{{COURSE_CATALOG}}', courseCatalog);
   }
+
+  const templateKeys = Object.keys(templates);
+  const templateHint = templateKeys.length
+    ? `\n--- Available canned messages ---\nYou can emit {{TEMPLATE:<key>}} in your reply and the runtime will swap it for the verbatim canned message. Available keys: ${templateKeys.join(', ')}\n`
+    : '';
+
+  const examplesBlock = renderExamples(examples);
 
   const context = [
     `--- Student Info ---`,
@@ -134,5 +146,12 @@ export function buildConversationPrompt(stage, user, messageText, courseCatalog 
     `Paid Courses: ${user.paidCourseIds?.length ? user.paidCourseIds.join(', ') : 'None yet'}`,
   ].join('\n');
 
-  return `${systemPrompt}\n\n${context}\n\n--- Student ka message ---\n${messageText}`;
+  return [
+    systemPrompt,
+    templateHint,
+    examplesBlock,
+    context,
+    `--- Student ka message ---`,
+    messageText,
+  ].filter(Boolean).join('\n\n');
 }
