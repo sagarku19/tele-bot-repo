@@ -510,6 +510,43 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 14: expandLinks
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n🔗 Test 14: expandLinks');
+try {
+  const { expandLinks } = await import('./training/templates.js');
+
+  const links = {
+    link: 'https://phon.pe/abc',
+    list1_link: 'https://t.me/+aaa',
+    list2_link: 'https://t.me/+bbb',
+  };
+
+  // All three placeholders substituted
+  const r1 = expandLinks('Pay {{link}} | List1 {{list1_link}} | List2 {{list2_link}}', links);
+  if (r1 === 'Pay https://phon.pe/abc | List1 https://t.me/+aaa | List2 https://t.me/+bbb') {
+    pass('expandLinks — all placeholders substituted');
+  } else {
+    fail('expandLinks all', `Got: "${r1}"`);
+  }
+
+  // Unknown placeholder left intact
+  const r2 = expandLinks('Unknown {{not_a_link}}', links);
+  if (r2 === 'Unknown {{not_a_link}}') {
+    pass('expandLinks — unknown placeholder left intact');
+  } else {
+    fail('expandLinks unknown', `Got: "${r2}"`);
+  }
+
+  // Empty links map: nothing substituted
+  const r3 = expandLinks('Pay {{link}}', {});
+  if (r3 === 'Pay {{link}}') pass('expandLinks — empty map leaves placeholders');
+  else fail('expandLinks empty map', `Got: "${r3}"`);
+} catch (err) {
+  fail('expandLinks', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));

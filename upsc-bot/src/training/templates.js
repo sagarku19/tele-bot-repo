@@ -36,3 +36,16 @@ export function replaceMarkers(reply, templates = {}) {
     return match;
   });
 }
+
+/**
+ * Expand {{name}} link placeholders inside a template body using the
+ * links map from the Firestore links collection. Thin wrapper around
+ * `substitute` — distinct name so call sites read clearly.
+ *
+ * @param {string} text
+ * @param {Record<string,string>} links
+ * @returns {string}
+ */
+export function expandLinks(text, links = {}) {
+  return substitute(text, links);
+}
