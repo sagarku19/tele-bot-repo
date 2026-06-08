@@ -61,7 +61,12 @@ export async function processMessage(user, messageText) {
       const hit = matchFaq(text, faq);
       if (hit) {
         console.log(`[conversation] FAQ hit | user=${userId} key="${hit.key}" msg="${text.substring(0, 50)}"`);
-        return { reply: replaceMarkers(hit.reply, templates), newStage: null, selectedCourseId: null };
+        return {
+          reply: replaceMarkers(hit.reply, templates),
+          newStage: null,
+          selectedCourseId: null,
+          meta: { source: 'faq', faqKey: hit.key },
+        };
       }
     } catch (err) {
       console.error('[conversation] FAQ check failed (continuing):', err.message);
@@ -83,7 +88,12 @@ export async function processMessage(user, messageText) {
       pushHistory(userId, 'model', reply);
 
       const looksLikeName = text.length >= 2 && !text.startsWith('/');
-      return { reply, newStage: looksLikeName ? 'engaged' : null, selectedCourseId: null };
+      return {
+        reply,
+        newStage: looksLikeName ? 'engaged' : null,
+        selectedCourseId: null,
+        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      };
     }
 
     // ── Stage: ENGAGED ─────────────────────────────────────────────
@@ -107,7 +117,12 @@ export async function processMessage(user, messageText) {
       const lowerText = text.toLowerCase();
       const showsInterest = interestKeywords.some((kw) => lowerText.includes(kw));
 
-      return { reply, newStage: showsInterest ? 'interested' : null, selectedCourseId: null };
+      return {
+        reply,
+        newStage: showsInterest ? 'interested' : null,
+        selectedCourseId: null,
+        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      };
     }
 
     // ── Stage: INTERESTED ──────────────────────────────────────────
@@ -144,7 +159,12 @@ export async function processMessage(user, messageText) {
 
       const finalReply = swap(cleanReply);
       pushHistory(userId, 'model', finalReply);
-      return { reply: finalReply, newStage, selectedCourseId };
+      return {
+        reply: finalReply,
+        newStage,
+        selectedCourseId,
+        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      };
     }
 
     // ── Stage: PAYMENT_PENDING ─────────────────────────────────────
@@ -155,7 +175,12 @@ export async function processMessage(user, messageText) {
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
 
-      return { reply, newStage: null, selectedCourseId: null };
+      return {
+        reply,
+        newStage: null,
+        selectedCourseId: null,
+        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      };
     }
 
     // ── Stage: PAID ────────────────────────────────────────────────
@@ -166,7 +191,12 @@ export async function processMessage(user, messageText) {
       pushHistory(userId, 'user', text);
       pushHistory(userId, 'model', reply);
 
-      return { reply, newStage: null, selectedCourseId: null };
+      return {
+        reply,
+        newStage: null,
+        selectedCourseId: null,
+        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      };
     }
 
     // ── Fallback ───────────────────────────────────────────────────
@@ -175,7 +205,12 @@ export async function processMessage(user, messageText) {
     const reply = swap(await chat(systemPrompt, history, text));
     pushHistory(userId, 'user', text);
     pushHistory(userId, 'model', reply);
-    return { reply, newStage: 'engaged', selectedCourseId: null };
+    return {
+      reply,
+      newStage: 'engaged',
+      selectedCourseId: null,
+      meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+    };
 
   } catch (err) {
     console.error(`[conversation] Error for user ${userId}:`, err.message);
@@ -183,6 +218,7 @@ export async function processMessage(user, messageText) {
       reply: 'Arre sorry yaar! Kuch technical issue aa gaya 😅 Ek baar phir try kar na!',
       newStage: null,
       selectedCourseId: null,
+      meta: { source: 'system' },
     };
   }
 }
