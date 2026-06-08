@@ -447,6 +447,34 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 12: Links collection loader
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n🔗 Test 12: Links loader');
+try {
+  const { getDb } = await import('../config/firebase.js');
+  const { getAllLinks } = await import('./db/links.js');
+  const db = getDb();
+
+  const testKey = `__test_link_${Date.now()}`;
+  await db.collection('links').doc(testKey).set({
+    name: testKey,
+    url: 'https://example.com/test',
+    updatedAt: new Date().toISOString(),
+  });
+
+  const map = await getAllLinks();
+  if (map && typeof map === 'object' && map[testKey] === 'https://example.com/test') {
+    pass(`getAllLinks — contains ${testKey}`);
+  } else {
+    fail('getAllLinks', `Expected key ${testKey} mapped to URL, got: ${JSON.stringify(map?.[testKey])}`);
+  }
+
+  await db.collection('links').doc(testKey).delete();
+} catch (err) {
+  fail('Links loader', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
