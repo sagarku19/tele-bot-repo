@@ -37,7 +37,7 @@ export function registerStartHandler(bot) {
       await ctx.reply(welcomeText);
     } catch (err) {
       console.error('[start] Error:', err.message);
-      await ctx.reply('Arre kuch issue aa gaya bhai. /start phir try kar 🙏');
+      await ctx.reply('Arre kuch issue aa gaya bhai. /start phir try karo 🙏');
     }
   });
 }
