@@ -475,6 +475,41 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 13: stripEmphasis
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n🧹 Test 13: stripEmphasis');
+try {
+  const { stripEmphasis } = await import('./training/sanitize.js');
+
+  // Basic bold
+  const r1 = stripEmphasis('Hello **bold** world');
+  if (r1 === 'Hello bold world') pass('stripEmphasis — basic **bold**');
+  else fail('stripEmphasis bold', `Got: "${r1}"`);
+
+  // Basic italic
+  const r2 = stripEmphasis('Hello *italic* world');
+  if (r2 === 'Hello italic world') pass('stripEmphasis — basic *italic*');
+  else fail('stripEmphasis italic', `Got: "${r2}"`);
+
+  // Mixed
+  const r3 = stripEmphasis('Price: **₹1499** for *combo*');
+  if (r3 === 'Price: ₹1499 for combo') pass('stripEmphasis — mixed bold + italic');
+  else fail('stripEmphasis mixed', `Got: "${r3}"`);
+
+  // Unmatched asterisks are left intact
+  const r4 = stripEmphasis('5 * 3 = 15 and a lone *');
+  if (r4 === '5 * 3 = 15 and a lone *') pass('stripEmphasis — unmatched * untouched');
+  else fail('stripEmphasis unmatched', `Got: "${r4}"`);
+
+  // Empty / falsy input
+  const r5 = stripEmphasis('');
+  if (r5 === '') pass('stripEmphasis — empty string returns empty');
+  else fail('stripEmphasis empty', `Got: "${r5}"`);
+} catch (err) {
+  fail('stripEmphasis', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
