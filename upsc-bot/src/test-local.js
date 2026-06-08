@@ -219,6 +219,41 @@ try {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Test 7: Templates — placeholder + marker substitution
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n📋 Test 7: Templates');
+try {
+  const { substitute, replaceMarkers } = await import('./training/templates.js');
+
+  // Placeholder substitution
+  const out = substitute('Hello {{name}}, your link is {{url}}', { name: 'Sagar', url: 'https://t.me/x' });
+  if (out === 'Hello Sagar, your link is https://t.me/x') {
+    pass('substitute — placeholders replaced');
+  } else {
+    fail('substitute', `Unexpected output: "${out}"`);
+  }
+
+  // Marker replacement — single marker
+  const templates = { gift_card_notice: 'Only gift card accepted 🙏' };
+  const reply1 = replaceMarkers('Okay bhai. {{TEMPLATE:gift_card_notice}}', templates);
+  if (reply1 === 'Okay bhai. Only gift card accepted 🙏') {
+    pass('replaceMarkers — single marker swapped');
+  } else {
+    fail('replaceMarkers single', `Unexpected: "${reply1}"`);
+  }
+
+  // Marker replacement — unknown key leaves marker intact and logs warning
+  const reply2 = replaceMarkers('Hi {{TEMPLATE:does_not_exist}}', templates);
+  if (reply2.includes('{{TEMPLATE:does_not_exist}}')) {
+    pass('replaceMarkers — unknown marker left intact');
+  } else {
+    fail('replaceMarkers unknown', `Should have left marker intact, got: "${reply2}"`);
+  }
+} catch (err) {
+  fail('Templates', err.message);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════════════════════════════════════
 console.log('\n' + '═'.repeat(60));
