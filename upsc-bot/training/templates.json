@@ -1,13 +1,13 @@
 {
-  "combo_pitch_1499": "All Coaching GS + optional Combo\nList 1 ~ {{list1_link}}\n\nAll subject Delhi Top Faculty Package\nList 2 ~ {{list2_link}}\n\nIn 1499 you will get access to both list + one optional subject\nIn 999 only list 2 you will get\n\nKonsa combo chahiye isme se",
-  "combo_pitch_999": "All subject Delhi Top Faculty Package\nList 2 ~ {{list2_link}}\n\nIn 999 only list 2 you will get",
-  "gift_card_notice": "Due To safety Reasons I Can't accept\nUPI/QR payments\nOnly gift card accepted 🙏🙏",
-  "lifetime_updates": "Haan lifetime\nUpdate 1 year ka hai 2026 mains tak",
-  "payment_link_amazon_pay": "Amazon Pay\n\nPayment Link 🖇️ ~ {{link}}",
+  "combo_pitch_1499": "All Coaching GS + Optional Combo\nList 1 ~ {{list1_link}}\n\nAll subject Delhi Top Faculty Package\nList 2 ~ {{list2_link}}\n\n1499 mein dono list + ek optional subject ka access milega\n999 mein sirf list 2 milega\n\nKonsa combo chahiye, bataiye",
+  "combo_pitch_999": "All subject Delhi Top Faculty Package\nList 2 ~ {{list2_link}}\n\n999 mein sirf list 2 milega",
+  "gift_card_notice": "Safety reasons ki wajah se UPI / QR payment accept nahi kar paate.\nSirf gift card accept hota hai 🙏🙏",
+  "lifetime_updates": "Haan ji, lifetime access hai\nUpdates 1 year ka — 2026 mains tak milte rahenge",
   "payment_link_gpay": "G Pay ~ Fk\n\nPayment Link 🖇️ ~ {{link}}\n\nFor 50, 200, 500, 1000",
-  "payment_link_paytm": "Paytm Ap\n\nPayment Link 🖇️ ~ {{link}}",
-  "payment_link_phonepe": "Phonepe Ap\n\nPayment Link 🖇️ ~ {{link}}\n\nLess Than 500",
-  "payment_mode_menu": "Which payment mode do you use ?\n\n1) Phonepe\n2) Paytm\n3) Amazon pay",
-  "payment_proof": "Payment Proof 🧾\n\nTo Check ~ {{link}}",
-  "post_payment_access": "Welcome bhai 👍\nJoin link ~ {{link}}\nUpdate milte rahenge"
+  "payment_link_paytm": "Paytm App\n\nPayment Link 🖇️ ~ {{link}}",
+  "payment_link_phonepe": "Phonepe App\n\nPayment Link 🖇️ ~ {{link}}\n\nLess Than 500",
+  "payment_link_amazon_pay": "Amazon Pay\n\nPayment Link 🖇️ ~ {{link}}",
+  "payment_mode_menu": "Konsa payment mode use karte hain aap?\n\n1) Phonepe\n2) Paytm\n3) Amazon pay",
+  "payment_proof": "Payment Proof 🧾\n\nDekhne ke liye ~ {{link}}",
+  "post_payment_access": "Welcome bhai 👍\nJoin link ~ {{link}}\nUpdates milte rahenge"
 }
