@@ -1,6 +1,15 @@
 /**
  * Course configuration for the UPSC Bot.
- * Each course has an id, name, description, price, channelId, groupId, and welcomeMessage.
+ *
+ * Required fields:
+ *   - id, name, description, price, channelId, groupId, welcomeMessage
+ *
+ * Optional fields (added 2026-06-08 for /train):
+ *   - kind: 'combo' | 'lecture' | 'optional'
+ *   - faculty: string                       (e.g. "Karandeep")
+ *   - subject: string                       (e.g. "Anthropology")
+ *   - demoLink: string                      (Telegram demo invite URL)
+ *   - pricing: { list, floor, oldMember }   (for negotiable courses; price still required)
  */
 const courses = [
   {
