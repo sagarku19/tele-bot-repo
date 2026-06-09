@@ -19,7 +19,6 @@ export async function GET(request) {
 
     const db = getDb();
 
-    // Single user lookup by telegramId
     if (telegramId) {
       const doc = await db.collection("users").doc(String(telegramId)).get();
       if (!doc.exists) {
@@ -41,7 +40,6 @@ export async function GET(request) {
       });
     }
 
-    // List all users (existing path)
     const snapshot = await db.collection("users").orderBy("createdAt", "desc").limit(100).get();
 
     const users = snapshot.docs.map(doc => {

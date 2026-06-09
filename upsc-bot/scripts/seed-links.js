@@ -4,7 +4,7 @@
  *
  *   cd upsc-bot && node scripts/seed-links.js
  *
- * Safe to re-run: uses set+merge:false only when the doc does not exist.
+ * Safe to re-run: checks existence first and skips any doc that already exists.
  */
 import 'dotenv/config';
 import { getDb } from '../config/firebase.js';

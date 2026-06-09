@@ -35,7 +35,7 @@ export function registerMessageHandler(bot) {
         console.log(`[message] Auto-created user ${id}`);
       }
 
-      // Log user's incoming message before any processing so it survives a Claude crash
+      // Persist before processing — survives a Claude crash mid-turn
       await appendMessage(id, {
         role: 'user',
         text,

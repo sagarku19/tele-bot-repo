@@ -9,6 +9,8 @@ import { replaceMarkers, expandLinks } from '../training/templates.js';
 import { stripEmphasis } from '../training/sanitize.js';
 import { matchFaq } from '../training/faq.js';
 
+const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
+
 /**
  * In-memory conversation history per user.
  * Maps telegramId → Array<{ role: 'user'|'model', text: string }>
@@ -56,10 +58,14 @@ export async function processMessage(user, messageText) {
 
   console.log(`[conversation] User ${userId} | stage: ${stage} | msg: "${text.substring(0, 50)}"`);
 
+  // Load shared resources once — both the FAQ short-circuit and the main stage handlers use them.
+  // Failures are swallowed gracefully: loadTemplates returns {} and getAllLinks returns {} on error.
+  const [templates, links] = await Promise.all([loadTemplates(), getAllLinks()]);
+
   // ── FAQ short-circuit (skip for paid — they get the full tutor) ─
   if (stage !== 'paid') {
     try {
-      const [faq, templates, links] = await Promise.all([loadFaq(), loadTemplates(), getAllLinks()]);
+      const faq = await loadFaq();
       const hit = matchFaq(text, faq);
       if (hit) {
         console.log(`[conversation] FAQ hit | user=${userId} key="${hit.key}" msg="${text.substring(0, 50)}"`);
@@ -78,11 +84,7 @@ export async function processMessage(user, messageText) {
 
   try {
     const history = getHistory(userId);
-    const [examplesPool, templates, links] = await Promise.all([
-      loadExamples(),
-      loadTemplates(),
-      getAllLinks(),
-    ]);
+    const examplesPool = await loadExamples();
     const examples = pickExamples(examplesPool, stage, 3);
     const swap = (reply) => stripEmphasis(expandLinks(replaceMarkers(reply, templates), links));
 
@@ -99,7 +101,7 @@ export async function processMessage(user, messageText) {
         reply,
         newStage: looksLikeName ? 'engaged' : null,
         selectedCourseId: null,
-        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+        meta: { source: 'claude', model: DEFAULT_MODEL },
       };
     }
 
@@ -128,7 +130,7 @@ export async function processMessage(user, messageText) {
         reply,
         newStage: showsInterest ? 'interested' : null,
         selectedCourseId: null,
-        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+        meta: { source: 'claude', model: DEFAULT_MODEL },
       };
     }
 
@@ -170,7 +172,7 @@ export async function processMessage(user, messageText) {
         reply: finalReply,
         newStage,
         selectedCourseId,
-        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+        meta: { source: 'claude', model: DEFAULT_MODEL },
       };
     }
 
@@ -186,7 +188,7 @@ export async function processMessage(user, messageText) {
         reply,
         newStage: null,
         selectedCourseId: null,
-        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+        meta: { source: 'claude', model: DEFAULT_MODEL },
       };
     }
 
@@ -202,7 +204,7 @@ export async function processMessage(user, messageText) {
         reply,
         newStage: null,
         selectedCourseId: null,
-        meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+        meta: { source: 'claude', model: DEFAULT_MODEL },
       };
     }
 
@@ -216,7 +218,7 @@ export async function processMessage(user, messageText) {
       reply,
       newStage: 'engaged',
       selectedCourseId: null,
-      meta: { source: 'claude', model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5' },
+      meta: { source: 'claude', model: DEFAULT_MODEL },
     };
 
   } catch (err) {

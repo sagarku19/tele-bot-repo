@@ -26,7 +26,7 @@ export default function UserTable({ users = [], compact = false }) {
       <table className="w-full text-sm text-left whitespace-nowrap">
         <thead className="text-xs text-slate-400 uppercase bg-slate-800/80 border-b border-slate-700">
           <tr>
-            <th className="px-4 md:px-6 py-3 md:py-4 font-semibold rounded-tl-lg">UserName</th>
+            <th className="px-4 md:px-6 py-3 md:py-4 font-semibold rounded-tl-lg">Name</th>
             {!compact && <th className="px-6 py-4 font-semibold">Username</th>}
             <th className="px-4 md:px-6 py-3 md:py-4 font-semibold">Stage</th>
             {!compact && <th className="px-6 py-4 font-semibold text-center">Paid</th>}
