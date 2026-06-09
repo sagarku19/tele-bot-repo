@@ -294,9 +294,27 @@ Admin Telegram command (added with /train). Re-runs `seedCoursesFromConfig` in p
 
 `courses.config.js` items support optional `kind` (`combo` | `lecture` | `optional`), `faculty`, `subject`, `demoLink`, and `pricing: { list, floor, oldMember }` alongside the original required fields. Bot still reads via doc ID. After running `/train`, run `/reload_courses` (or restart) to push catalog changes to Firestore.
 
+## Chat persistence + admin viewer (added 2026-06-09)
+
+Every conversation turn is appended to `users/{telegramId}/messages/{auto-id}` in Firestore. Each doc carries `{ role, text, ts, stage, source, faqKey?, model? }` where `source` is one of `user | claude | faq | template | system`. Writes happen in `handlers/message.js` (user msg before processing, bot reply after) and `handlers/photo.js` (photo turn).
+
+Admin viewer at `/users/[telegramId]`: user info card + chronological bubbles + Refresh button + "Load older" paginated by `?before=<ts>`. Click any row in `/users` to navigate.
+
+API: `GET /api/messages?telegramId=<id>&limit=100&before=<iso>`. `GET /api/users?telegramId=<id>` returns a single user.
+
+## Links store (added 2026-06-09)
+
+Firestore `links/{name}` collection with `{ name, url, label?, updatedAt }`. Managed via the admin `/links` page (full CRUD). Bot's substitution chain calls `getAllLinks()` once per turn and feeds the map into `expandLinks(text, links)` after `replaceMarkers`. Bootstrap seed: `node upsc-bot/scripts/seed-links.js` inserts 7 placeholder rows (`payment_link_phonepe`, `payment_link_paytm`, `payment_link_gpay`, `payment_link_amazon_pay`, `list1_link`, `list2_link`, `payment_proof`) — operator replaces the `https://example.com/FILL_ME` URLs via the admin UI before going live.
+
+## Bot output guarantees (added 2026-06-09)
+
+- Every Claude reply runs through `replaceMarkers → expandLinks → stripEmphasis` before being sent.
+- `stripEmphasis` (in `src/training/sanitize.js`) removes any leftover `**bold**` / `*italic*` Markdown the model produced. STAGE_PROMPTS also instruct the model not to use Markdown — plain Telegram text only.
+- Tone register is polite: `kr` → `kariye` / `kar dijiye`, `krwa do` → `karwa dijiye`. Operator-side examples in `training/examples.json` reflect this.
+
 ## Known limitations
 
-- **Conversation history is in-memory.** Ring buffer of 20 in `flows/conversation.js:10`; only the last 10 reach the model (sliced inside `claude.js chat()`). Lost on every bot restart.
+- **Conversation history is now persisted to Firestore** (added 2026-06-09). Each turn writes to `users/{telegramId}/messages/{auto-id}` with full context (stage, source, faqKey, model). The legacy in-memory ring buffer in `flows/conversation.js:10` still serves the Claude history-window (last 10 messages), but durability + admin viewing now flow through Firestore.
 - **Admin "Verify & Grant Access" does NOT grant access.** The PATCH only sets `status:'verified'`; `console.log("TODO: trigger bot access grant for payment ${paymentId}")`. User's `isPaid` and `stage` remain unchanged unless the bot's automatic path fires.
 - **Naive revenue calculation** on the dashboard: `paidUsers × avg(coursePrice)`, not the actual sum of `paidCourseIds × price`.
 - **Soft-delete inconsistency:** `/api/courses DELETE` flips `active:false`, but `db/courses.js → getAllCourses()` returns all rows. "Deleted" courses still appear in the bot's `interested` stage catalog.
@@ -304,7 +322,7 @@ Admin Telegram command (added with /train). Re-runs `seedCoursesFromConfig` in p
 - **Plain-text admin password.** `ADMIN_PASSWORD` compared with `===`. No hashing, no per-user accounts, no lockout.
 - **No rate limiting** on user-facing bot messages. A spammy user racks up Anthropic API cost.
 - **Single bot, single admin** by design.
-- **Inner template placeholders are not substituted at runtime.** `templates.json` bodies contain `{{link}}`, `{{list1_link}}`, `{{list2_link}}` placeholders for live payment URLs. The bot's runtime calls `replaceMarkers` (swaps `{{TEMPLATE:<key>}}`) but NOT `substitute` (would expand `{{link}}` etc.). So combo pitches and payment links currently send literal `{{link}}` text to users. Until a `payment-links.json` + `substitute` call chain is wired in, the operator must avoid sending these templates verbatim or manually fill the placeholders in `templates.json`.
+- **Inner template placeholders are now substituted at runtime** (added 2026-06-09). `flows/conversation.js` chains `replaceMarkers → expandLinks → stripEmphasis` per turn; `expandLinks` reads the `links` Firestore collection (managed via the admin `/links` page) and swaps `{{link}}` / `{{list1_link}}` / `{{list2_link}}` etc. with live URLs.
 
 ## Future improvements
 - Persist conversation history to Firestore (or Redis) so it survives restart.
